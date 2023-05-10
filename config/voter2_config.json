@@ -1,0 +1,5 @@
+{
+  "voter_id": "voter2",
+  "voter_signing_key_path": "../keys/voter2-dsa-private.key",
+  "voter_certificate_path": "../keys/voter2-cert-signature.txt"
+}

@@ -1,0 +1,36 @@
+#pragma once
+
+#include <crypto++/cryptlib.h>
+#include <crypto++/dh.h>
+#include <crypto++/dh2.h>
+#include <crypto++/dsa.h>
+#include <crypto++/integer.h>
+#include <crypto++/nbtheory.h>
+#include <crypto++/osrng.h>
+
+#include "../../include-shared/config.hpp"
+#include "../../include-shared/constants.hpp"
+#include "../../include-shared/messages.hpp"
+#include "../../include-shared/util.hpp"
+#include "../../include/drivers/cli_driver.hpp"
+#include "../../include/drivers/db_driver.hpp"
+
+class ElectionClient {
+public:
+  static std::pair<Vote_Struct, VoteZKP_Struct>
+  GenerateVote(CryptoPP::Integer vote, CryptoPP::Integer pk);
+  static bool VerifyVoteZKP(std::pair<Vote_Struct, VoteZKP_Struct> vote,
+                            CryptoPP::Integer pk);
+
+  static std::pair<PartialDecryption_Struct, DecryptionZKP_Struct>
+  PartialDecrypt(Vote_Struct combined_vote, CryptoPP::Integer pk,
+                 CryptoPP::Integer sk);
+  static bool
+  VerifyPartialDecryptZKP(ArbiterToWorld_PartialDecryption_Message a2w_dec_s,
+                          CryptoPP::Integer pki);
+
+  static Vote_Struct CombineVotes(std::vector<VoteRow> all_votes);
+  static CryptoPP::Integer
+  CombineResults(Vote_Struct combined_vote,
+                 std::vector<PartialDecryptionRow> all_partial_decryptions);
+};

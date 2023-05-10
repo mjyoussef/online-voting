@@ -1,0 +1,2 @@
+/usr/bin/ar qc libvote_app_lib_shared.a  CMakeFiles/vote_app_lib_shared.dir/src-shared/config.cxx.o CMakeFiles/vote_app_lib_shared.dir/src-shared/messages.cxx.o CMakeFiles/vote_app_lib_shared.dir/src-shared/logger.cxx.o CMakeFiles/vote_app_lib_shared.dir/src-shared/util.cxx.o CMakeFiles/vote_app_lib_shared.dir/src-shared/keyloaders.cxx.o
+/usr/bin/ranlib libvote_app_lib_shared.a
