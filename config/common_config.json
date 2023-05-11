@@ -2,5 +2,6 @@
   "db_path": "../keys/vote.db",
   "arbiter_public_key_paths": ["../keys/arbiter0-eg-public.key", "../keys/arbiter1-eg-public.key"],
   "registrar_verification_key_path": "../keys/registrar-dsa-public.key",
-  "tallyer_verification_key_path": "../keys/tallyer-dsa-public.key"
+  "tallyer_verification_key_path": "../keys/tallyer-dsa-public.key",
+  "candidates": ["candidate 1", "candidate 2", "candidate 3", "candidate 4"]
 }

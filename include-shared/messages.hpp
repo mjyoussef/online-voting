@@ -32,6 +32,8 @@ enum T {
   PartialDecryption_Struct = 10,
   DecryptionZKP_Struct = 11,
   ArbiterToWorld_PartialDecryption_Message = 12,
+  Count_ZKP_Struct = 13,
+
 };
 };
 MessageType::T get_message_type(std::vector<unsigned char> &data);
@@ -49,6 +51,9 @@ struct Serializable {
 int put_bool(bool b, std::vector<unsigned char> &data);
 int put_string(std::string s, std::vector<unsigned char> &data);
 int put_integer(CryptoPP::Integer i, std::vector<unsigned char> &data);
+
+// serializing helper
+void add_size_param(std::vector<unsigned char> &data, size_t &size_param);
 
 // deserializers
 int get_bool(bool *b, std::vector<unsigned char> &data, int idx);
@@ -139,20 +144,32 @@ struct VoteZKP_Struct : public Serializable {
   int deserialize(std::vector<unsigned char> &data);
 };
 
+struct Count_ZKP_Struct : public Serializable {
+  CryptoPP::Integer a_i;
+  CryptoPP::Integer b_i;
+  CryptoPP::Integer c_i;
+  CryptoPP::Integer r_i;
+
+  void serialize(std::vector<unsigned char> &data);
+  int deserialize(std::vector<unsigned char> &data);
+}
+
 struct VoterToTallyer_Vote_Message : public Serializable {
   RegistrarToVoter_Certificate_Message cert;
-  Vote_Struct vote;
-  VoteZKP_Struct zkp;
-  std::string voter_signature; // computed on vote + zkp
+  std::vector<Vote_Struct> votes;
+  std::vector<VoteZKP_Struct> zkps;
+  std::vector<Count_ZKP_Struct> count_zkps;
+  std::string voter_signature; // computed on votes, zkps, and count_zkps
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
 };
 
 struct TallyerToWorld_Vote_Message : public Serializable {
-  Vote_Struct vote;
-  VoteZKP_Struct zkp;
-  std::string tallyer_signature; // computed on vote + zkp
+  std::vector<Vote_Struct> votes;
+  std::vector<VoteZKP_Struct> zkps;
+  std::vector<Count_ZKP_Struct> count_zkps;
+  std::string tallyer_signature; // computed on votes, zkps, and count_zkps
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
@@ -165,7 +182,7 @@ struct TallyerToWorld_Vote_Message : public Serializable {
 // Struct for a pd of `aggregate_ciphertext` (d) = (g^{r sk_i})
 struct PartialDecryption_Struct : public Serializable {
   CryptoPP::Integer d;
-  Vote_Struct aggregate_ciphertext;
+  Vote_Struct aggregate_ciphertext;f
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
@@ -184,12 +201,13 @@ struct DecryptionZKP_Struct : public Serializable {
 struct ArbiterToWorld_PartialDecryption_Message : public Serializable {
   std::string arbiter_id;
   std::string arbiter_vk_path;
-  PartialDecryption_Struct dec;
-  DecryptionZKP_Struct zkp;
+  std::vector<PartialDecryption_Struct> decs;
+  std::vector<DecryptionZKP_Struct> zkps;
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
 };
+
 
 // ================================================
 // SIGNING HELPERS

@@ -16,6 +16,7 @@ struct CommonConfig {
   std::vector<std::string> arbiter_public_key_paths;
   std::string registrar_verification_key_path;
   std::string tallyer_verification_key_path;
+  std::vector<std::string> candidates;
 };
 CommonConfig load_common_config(std::string filename);
 

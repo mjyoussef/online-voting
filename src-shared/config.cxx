@@ -41,6 +41,12 @@ CommonConfig load_common_config(std::string filename) {
       root.get<std::string>("registrar_verification_key_path", "");
   config.tallyer_verification_key_path =
       root.get<std::string>("tallyer_verification_key_path", "");
+  
+  std::vector<std::string> candidates;
+  for (auto candidate : as_vector<std::string>(root, "candidates")) {
+    candidates.push_back(candidate);
+  }
+  config.candidates = candidates;
 
   return config;
 }

@@ -22,6 +22,7 @@ TallyerClient::TallyerClient(TallyerConfig tallyer_config,
   // Make shared variables.
   this->tallyer_config = tallyer_config;
   this->common_config = common_config;
+  this->k = common_config.candidates.size();
   this->cli_driver = std::make_shared<CLIDriver>();
   this->db_driver = std::make_shared<DBDriver>();
   this->db_driver->open(this->common_config.db_path);

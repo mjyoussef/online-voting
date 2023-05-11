@@ -24,6 +24,7 @@ VoterClient::VoterClient(std::shared_ptr<NetworkDriver> network_driver,
   // Make shared variables.
   this->voter_config = voter_config;
   this->common_config = common_config;
+  this->k = common_config.candidates.size();
   this->network_driver = network_driver;
   this->crypto_driver = crypto_driver;
   this->cli_driver = std::make_shared<CLIDriver>();

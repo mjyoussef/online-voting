@@ -148,11 +148,6 @@ bool ElectionClient::VerifyVoteZKP(std::pair<Vote_Struct, VoteZKP_Struct> vote,
   CryptoPP::Integer c0_plus_c1 = (zkp.c0 + zkp.c1) % DL_Q;
   CryptoPP::Integer c = hash_vote_zkp(pk, vote_info.a, vote_info.b, zkp.a0, zkp.b0, zkp.a1, zkp.b1) % DL_Q;
 
-  // std::cout<<((g_r0 == g_r0_check))<<std::endl;
-  // std::cout<<((g_r1 == g_r1_check))<<std::endl;
-  // std::cout<<((pk_r0 == pk_r0_check))<<std::endl;
-  // std::cout<<((pk_r1 == pk_r1_check))<<std::endl;
-  // std::cout<<((c0_plus_c1 == c))<<std::endl;
   return (g_r0 == g_r0_check) && (g_r1 == g_r1_check) && (pk_r0 == pk_r0_check) && (pk_r1 == pk_r1_check) && (c0_plus_c1 == c);
 }
 

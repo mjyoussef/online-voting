@@ -19,6 +19,7 @@ RegistrarClient::RegistrarClient(RegistrarConfig registrar_config,
   // Make shared variables.
   this->registrar_config = registrar_config;
   this->common_config = common_config;
+  this->k = common_config.candidates.size();
   this->cli_driver = std::make_shared<CLIDriver>();
   this->db_driver = std::make_shared<DBDriver>();
   this->db_driver->open(this->common_config.db_path);

@@ -21,6 +21,7 @@ ArbiterClient::ArbiterClient(ArbiterConfig arbiter_config,
   // Make shared variables.
   this->arbiter_config = arbiter_config;
   this->common_config = common_config;
+  this->k = common_config.candidates.size();
   this->cli_driver = std::make_shared<CLIDriver>();
   this->crypto_driver = std::make_shared<CryptoDriver>();
   this->db_driver = std::make_shared<DBDriver>();
