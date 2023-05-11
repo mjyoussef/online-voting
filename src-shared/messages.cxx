@@ -314,6 +314,52 @@ int Vote_Struct::deserialize(std::vector<unsigned char> &data) {
 }
 
 /**
+ * serialize Votes_Struct.
+ */
+void Votes_Struct::serialize(std::vector<unsigned char> &data) {
+  // Add message type.
+  data.push_back((char)MessageType::Votes_Struct);
+
+  size_t num_votes = this->votes.size();
+  add_size_param(data, num_votes);
+
+  for (auto &vote : this->votes) {
+    std::vector<unsigned char> vote_data;
+    vote.serialize(vote_data);
+    data.insert(data.end(), vote_data.begin(), vote_data.end());
+  }
+}
+
+/**
+ * deserialize Votes_Struct.
+ */
+int Votes_Struct::deserialize(std::vector<unsigned char> &data) {
+  // Check correct message type.
+  assert(data[0] == MessageType::Votes_Struct);
+
+  int n = 1;
+
+  // Get fields.
+  size_t num_votes;
+  std::memcpy(&num_votes, &data[n], sizeof(size_t));
+  n += sizeof(size_t);
+
+  std::vector<Vote_Struct> votes;
+  for (int i=0; i<num_votes; i++) {
+    Vote_Struct vote;
+    std::vector<unsigned char> vote_data = 
+      std::vector<unsigned_char>(data.begin() + n, data.end());
+    
+    n += vote.deserialize(vote_data);
+    votes.push_back(vote);
+  }
+  this->votes = votes;
+
+  return n;
+}
+
+
+/**
  * serialize VoteZKP_Struct.
  */
 void VoteZKP_Struct::serialize(std::vector<unsigned char> &data) {
@@ -351,6 +397,52 @@ int VoteZKP_Struct::deserialize(std::vector<unsigned char> &data) {
   return n;
 }
 
+/**
+ * serialize VoteZKPs_Struct.
+ */
+void VoteZKPs_Struct::serialize(std::vector<unsigned char> &data) {
+  // Add message type.
+  data.push_back((char)MessageType::VoteZKPs_Struct);
+
+  // Add fields.
+  size_t num_zkps = this->zkps.size();
+  add_size_param(data, num_zkps);
+
+  for (auto &zkp: this->zkps) {
+    std::vector<unsigned char> zkp_data;
+    zkp.serialize(zkp_data);
+    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
+  }
+}
+
+/**
+ * deserialize VoteZKPs_Struct.
+ */
+int VoteZKPs_Struct::deserialize(std::vector<unsigned char> &data) {
+  // Check correct message type.
+  assert(data[0] == MessageType::VoteZKPs_Struct);
+
+  // Get fields.
+  int n = 1;
+
+  size_t num_zkps;
+  std::memcpy(&num_zkps, &data[n], sizeof(size_t));
+  n += sizeof(size_t);
+
+  std::vector<VoteZKP_Struct> zkps;
+  for (int i=0; i<num_zkps; i++) {
+    VoteZKP_Struct zkp;
+    std::vector<unsigned char> zkp_data =
+      std::vector<unsigned char>(data.begin() + n, data.end());
+    
+    n += zkp.deserialize(zkp_data);
+    zkps.push_back(zkp);
+  }
+  this->zkps = zkps;
+
+  return n;
+}
+
 void Count_ZKP_Struct::serialize(std::vector<unsigned char> &data) {
   data.push_back((char)MessageType::Count_ZKP_Struct);
 
@@ -371,6 +463,42 @@ int Count_ZKP_Struct::deserialize(std::vector<unsigned char> &data) {
   return n;
 }
 
+void Count_ZKPs_Struct::serialize(std::vector<unsigned char> &data) {
+  data.push_back((char)MessageType::Count_ZKPs_Struct);
+
+  size_t num_count_zkps = this->count_zkps.size();
+  add_size_param(data, num_count_zkps);
+
+  for (auto &count_zkp : this->count_zkps) {
+    std::vector<unsigned char> zkp_data;
+    count_zkp.serialize(zkp_data);
+    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
+  }
+}
+
+int Count_ZKPs_Struct::deserialize(std::vector<unsigned char> &data) {
+  assert(data[0] == MessageType::Count_ZKPs_Struct);
+
+  int n = 1;
+
+  size_t num_count_zkps;
+  std::memcpy(&num_count_zkps, &data[n], sizeof(size_t));
+  n += sizeof(size_t);
+
+  std::vector<Count_ZKP_Struct> count_zkps;
+  for (int i=0; i<num_count_zkps; i++) {
+    Count_ZKP_Struct zkp;
+    std::vector<unsigned char> zkp_data = 
+      std::vector<unsigned char>(data.begin() + n, data.end());
+    
+    n += zkp.deserialize(zkp_data);
+    zkps.push_back(zkp);
+  }
+  this->count_zkps = count_zkps;
+  
+  return n;
+}
+
 /**
  * serialize VoterToTallyer_Vote_Message.
  */
@@ -383,32 +511,17 @@ void VoterToTallyer_Vote_Message::serialize(std::vector<unsigned char> &data) {
   this->cert.serialize(cert_data);
   data.insert(data.end(), cert_data.begin(), cert_data.end());
 
-  size_t num_votes = this->votes.size();
-  add_size_param(data, num_votes);
+  std::vector<unsigned char> votes_data;
+  this->votes.serialize(votes_data);
+  data.insert(data.end(), votes.data.begin(), votes.data.end());
 
-  for (auto &vote : this->votes) {
-    std::vector<unsigned char> vote_data;
-    vote.serialize(vote_data);
-    data.insert(data.end(), vote_data.begin(), vote_data.end());
-  }
+  std::vector<unsigned char> zkps_data;
+  this->zkps.serialize(zkps_data);
+  data.insert(data.end(), zkps_data.begin(), zkps_data.end());
 
-  size_t num_zkps = this->zkps.size();
-  add_size_param(data, num_zkps);
-
-  for (auto &zkp: this->zkps) {
-    std::vector<unsigned char> zkp_data;
-    zkp.serialize(zkp_data);
-    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
-  }
-
-  size_t num_count_zkps = this->count_zkps.size();
-  add_size_param(data, num_count_zkps);
-
-  for (auto &count_zkp : this->count_zkps) {
-    std::vector<unsigned char> zkp_data;
-    count_zkp.serialize(zkp_data);
-    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
-  }
+  std::vector<unsigned char> count_zkps_data;
+  this->count_zkps.serialize(count_zkps_data);
+  data.insert(data.end(), count_zkps_data.begin(), count_zkps_data.end());
   
   put_string(this->voter_signature, data);
 }
@@ -422,54 +535,18 @@ int VoterToTallyer_Vote_Message::deserialize(std::vector<unsigned char> &data) {
 
   // Get fields.
   int n = 1;
-  std::vector<unsigned char> cert_slice =
-      std::vector<unsigned char>(data.begin() + n, data.end());
-  n += this->cert.deserialize(cert_slice);
 
-  size_t num_votes;
-  std::memcpy(&num_votes, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
+  std::vector<unsigned char> votes_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->votes.deserialize(votes_data);
 
-  std::vector<Vote_Struct> votes;
-  for (int i=0; i<num_votes; i++) {
-    Vote_Struct vote;
-    std::vector<unsigned char> vote_data = 
-      std::vector<unsigned_char>(data.begin() + n, data.end());
-    
-    n += vote.deserialize(vote_data);
-    votes.push_back(vote);
-  }
-  this->votes = votes;
+  std::vector<unsigned char> zkps_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->zkps.deserialize(zkps_data);
 
-  size_t num_zkps;
-  std::memcpy(&num_zkps, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
-
-  std::vector<VoteZKP_Struct> zkps;
-  for (int i=0; i<num_zkps; i++) {
-    VoteZKP_Struct zkp;
-    std::vector<unsigned char> zkp_data =
-      std::vector<unsigned char>(data.begin() + n, data.end());
-    
-    n += zkp.deserialize(zkp_data);
-    zkps.push_back(zkp);
-  }
-  this->zkps = zkps;
-
-  size_t num_count_zkps;
-  std::memcpy(&num_count_zkps, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
-
-  std::vector<Count_ZKP_Struct> count_zkps;
-  for (int i=0; i<num_count_zkps; i++) {
-    Count_ZKP_Struct zkp;
-    std::vector<unsigned char> zkp_data = 
-      std::vector<unsigned char>(data.begin() + n, data.end());
-    
-    n += zkp.deserialize(zkp_data);
-    zkps.push_back(zkp);
-  }
-  this->count_zkps = count_zkps;
+  std::vector<unsigned char> count_zkps_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->count_zkps.deserialize(count_zkps_data);
 
   n += get_string(&this->voter_signature, data, n);
   return n;
@@ -483,32 +560,17 @@ void TallyerToWorld_Vote_Message::serialize(std::vector<unsigned char> &data) {
   data.push_back((char)MessageType::TallyerToWorld_Vote_Message);
 
   // Add fields.
-  size_t num_votes = this->votes.size();
-  add_size_param(data, num_votes);
+  std::vector<unsigned char> votes_data;
+  this->votes.serialize(votes_data);
+  data.insert(data.end(), votes.data.begin(), votes.data.end());
 
-  for (auto &vote : this->votes) {
-    std::vector<unsigned char> vote_data;
-    vote.serialize(vote_data);
-    data.insert(data.end(), vote_data.begin(), vote_data.end());
-  }
+  std::vector<unsigned char> zkps_data;
+  this->zkps.serialize(zkps_data);
+  data.insert(data.end(), zkps_data.begin(), zkps_data.end());
 
-  size_t num_zkps = this->zkps.size();
-  add_size_param(data, num_zkps);
-
-  for (auto &zkp : this->zkps) {
-    std::vector<unsigned char> zkp_data;
-    zkp.serialize(zkp_data);
-    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
-  }
-
-  size_t num_count_zkps = this->count_zkps.size();
-  add_size_param(data, num_count_zkps);
-
-  for (auto &zkp : this->count_zkps) {
-    std::vector<unsigned char> zkp_data;
-    zkp.serialize(zkp_data);
-    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
-  }
+  std::vector<unsigned char> count_zkps_data;
+  this->count_zkps.serialize(count_zkps_data);
+  data.insert(data.end(), count_zkps_data.begin(), count_zkps_data.end());
 
   put_string(this->tallyer_signature, data);
 }
@@ -521,51 +583,17 @@ int TallyerToWorld_Vote_Message::deserialize(std::vector<unsigned char> &data) {
   assert(data[0] == MessageType::TallyerToWorld_Vote_Message);
 
   // Get fields.
-  int n = 1;
-  size_t num_votes;
-  std::memcpy(&num_votes, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
+  std::vector<unsigned char> votes_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->votes.deserialize(votes_data);
 
-  std::vector<Vote_Struct> votes;
-  for (int i=0; i<num_votes; i++) {
-    Vote_Struct vote;
-    std::vector<unsigned char> vote_data = 
-      std::vector<unsigned char>(data.begin() + n, data.end());
-    
-    n += vote.deserialize(vote_data);
-    votes.push_back(vote);
-  }
-  this->votes = votes;
+  std::vector<unsigned char> zkps_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->zkps.deserialize(zkps_data);
 
-  size_t num_zkps;
-  std::memcpy(&num_zkps, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
-
-  std::vector<VoteZKP_Struct> zkps;
-  for (int i=0; i<num_zkps; i++) {
-    VoteZKP_Struct zkp;
-    std::vector<unsigned char> zkp_data = 
-      std::vector<unsigned char>(data.begin() + n, data.end());
-    
-    n += zkp.deserialize(zkp_data);
-    zkps.push_back(zkp);
-  }
-  this->zkps = zkps;
-
-  size_t num_count_zkps;
-  std::memcpy(&num_count_zkps, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
-
-  std::vector<Count_ZKP_Struct> count_zkps;
-  for (int i=0; i<num_count_zkps; i++) {
-    Count_ZKP_Struct zkp;
-    std::vector<unsigned char> zkp_data = 
-      std::vector<unsigned char>(data.begin() + n, data.end());
-    
-    n += zkp.deserialize(zkp_data);
-    count_zkps.push_back(zkp);
-  }
-  this->count_zkps = count_zkps;
+  std::vector<unsigned char> count_zkps_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->count_zkps.deserialize(count_zkps_data);
 
   n += get_string(&this->tallyer_signature, data, n);
   return n;
@@ -607,6 +635,52 @@ int PartialDecryption_Struct::deserialize(std::vector<unsigned char> &data) {
 }
 
 /**
+ * serialize PartialDecryptions_Struct.
+ */
+void PartialDecryptions_Struct::serialize(std::vector<unsigned char> &data) {
+  // Add message type.
+  data.push_back((char)MessageType::PartialDecryptions_Struct);
+
+  // Add fields.
+  size_t num_decs = this->decs.size();
+  add_size_param(data, num_decs);
+
+  for (auto &dec : decs) {
+    std::vector<unsigned char> dec_data;
+    dec.serialize(dec_data);
+    data.insert(data.end(), dec_data.begin(), dec_data.end());
+  }
+}
+
+/**
+ * deserialize PartialDecryptions_Struct.
+ */
+int PartialDecryptions_Struct::deserialize(std::vector<unsigned char> &data) {
+  // Check correct message type.
+  assert(data[0] == MessageType::PartialDecryptions_Struct);
+
+  // Get fields.
+  int n = 1;
+
+  size_t num_decs;
+  std::memcpy(&num_decs, &data[n], sizeof(size_t));
+  n += sizeof(size_t);
+
+  std::vector<PartialDecryption_Struct> decs;
+  for (int i=0; i<num_decs; i++) {
+    PartialDecryption_Struct dec;
+    std::vector<unsigned char> dec_data = 
+      std::vector<unsigned char>(data.begin() + n, data.end());
+    
+    n += dec.deserialize(dec_data);
+    decs.push_back(dec);
+  }
+  this->decs = decs;
+
+  return n;
+}
+
+/**
  * serialize DecryptionZKP_Struct.
  */
 void DecryptionZKP_Struct::serialize(std::vector<unsigned char> &data) {
@@ -635,6 +709,52 @@ int DecryptionZKP_Struct::deserialize(std::vector<unsigned char> &data) {
 }
 
 /**
+ * serialize DecryptionZKPs_Struct.
+ */
+void DecryptionZKPs_Struct::serialize(std::vector<unsigned char> &data) {
+  // Add message type.
+  data.push_back((char)MessageType::DecryptionZKPs_Struct);
+
+  // Add fields.
+  size_t num_zkps = this->zkps.size();
+  add_size_param(data, num_zkps);
+
+  for (auto &zkp : zkps) {
+    std::vector<unsigned char> zkp_data;
+    zkp.serialize(zkp_data);
+    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
+  }
+}
+
+/**
+ * deserialize DecryptionZKPs_Struct.
+ */
+int DecryptionZKPs_Struct::deserialize(std::vector<unsigned char> &data) {
+  // Check correct message type.
+  assert(data[0] == MessageType::DecryptionZKPs_Struct);
+
+  // Get fields.
+  int n = 1;
+
+  size_t num_zkps;
+  std::memcpy(&num_zkps, &data[n], sizeof(size_t));
+  n += sizeof(size_t);
+
+  std::vector<DecryptionZKP_Struct> zkps;
+  for (int i=0; i<num_zkps; i++) {
+    DecryptionZKP_Struct zkp;
+    std::vector<unsigned char> zkp_data = 
+      std::vector<unsigned char>(data.begin() + n, data.end());
+    
+    n += zkp.deserialize(zkp_data);
+    zkps.push_back(zkp);
+  }
+  this->zkps = zkps;
+
+  return n;
+}
+
+/**
  * serialize ArbiterToWorld_PartialDecryption_Message.
  */
 void ArbiterToWorld_PartialDecryption_Message::serialize(
@@ -647,23 +767,13 @@ void ArbiterToWorld_PartialDecryption_Message::serialize(
 
   put_string(this->arbiter_vk_path, data);
 
-  size_t num_decs = this->decs.size();
-  add_size_param(data, num_decs);
+  std::vector<unsigned char> decs_data;
+  this->decs.serialize(decs_data);
+  data.insert(data.end(), decs_data.begin(), decs_data.end());
 
-  for (auto &dec : decs) {
-    std::vector<unsigned char> dec_data;
-    dec.serialize(dec_data);
-    data.insert(data.end(), dec_data.begin(), dec_data.end());
-  }
-
-  size_t num_zkps = this->zkps.size();
-  add_size_param(data, num_zkps);
-
-  for (auto &zkp : zkps) {
-    std::vector<unsigned char> zkp_data;
-    zkp.serialize(zkp_data);
-    data.insert(data.end(), zkp_data.begin(), zkp_data.end());
-  }
+  std::vector<unsigned char> zkps_data;
+  this->zkps.serialize(zkps_data);
+  data.insert(data.end(), zkps_data.begin(), zkps_data.end());
 }
 
 /**
@@ -680,35 +790,13 @@ int ArbiterToWorld_PartialDecryption_Message::deserialize(
 
   n += get_string(&this->arbiter_vk_path, data, n);
 
-  size_t num_decs;
-  std::memcpy(&num_decs, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
+  std::vector<unsigned char> decs_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->decs.deserialize(decs_data);
 
-  std::vector<PartialDecryption_Struct> decs;
-  for (int i=0; i<num_decs; i++) {
-    PartialDecryption_Struct dec;
-    std::vector<unsigned char> dec_data = 
-      std::vector<unsigned char>(data.begin() + n, data.end());
-    
-    n += dec.deserialize(dec_data);
-    decs.push_back(dec);
-  }
-  this->decs = decs;
-
-  size_t num_zkps;
-  std::memcpy(&num_zkps, &data[n], sizeof(size_t));
-  n += sizeof(size_t);
-
-  std::vector<DecryptionZKP_Struct> zkps;
-  for (int i=0; i<num_zkps; i++) {
-    DecryptionZKP_Struct zkp;
-    std::vector<unsigned char> zkp_data = 
-      std::vector<unsigned char>(data.begin() + n, data.end());
-    
-    n += zkp.deserialize(zkp_data);
-    zkps.push_back(zkp);
-  }
-  this->zkps = zkps;
+  std::vector<unsigned char> zkps_data = 
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->zkps.deserialize(zkps_data);
 
   return n;
 }
