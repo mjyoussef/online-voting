@@ -159,64 +159,75 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
   // TODO: implement me!
 
   // // key exchange
-  // std::pair<CryptoPP::SecByteBlock, CryptoPP::SecByteBlock> keys = 
-  //   this->HandleKeyExchange(network_driver, crypto_driver);
+  std::pair<CryptoPP::SecByteBlock, CryptoPP::SecByteBlock> keys = 
+    this->HandleKeyExchange(network_driver, crypto_driver);
   
-  // // get VoterToTallyer_Vote_Message
-  // std::vector<unsigned char> raw_voter_to_tallyer = network_driver->read();
-  // std::pair<std::vector<unsigned char>, bool> voter_to_tallyer_cipher = 
-  //   crypto_driver->decrypt_and_verify(keys.first, keys.second, raw_voter_to_tallyer);
+  // get VoterToTallyer_Vote_Message
+  std::vector<unsigned char> raw_voter_to_tallyer = network_driver->read();
+  std::pair<std::vector<unsigned char>, bool> voter_to_tallyer_cipher = 
+    crypto_driver->decrypt_and_verify(keys.first, keys.second, raw_voter_to_tallyer);
 
-  // if (!(voter_to_tallyer_cipher.second)) {
-  //   throw std::runtime_error("Unverified voter to tallyer message sent");
-  //   network_driver->disconnect();
-  //   return;
-  // }
+  if (!(voter_to_tallyer_cipher.second)) {
+    throw std::runtime_error("Unverified voter to tallyer message sent");
+    network_driver->disconnect();
+    return;
+  }
 
-  // VoterToTallyer_Vote_Message voter_to_tallyer_msg;
-  // voter_to_tallyer_msg.deserialize(voter_to_tallyer_cipher.first);
+  VoterToTallyer_Vote_Message voter_to_tallyer_msg;
+  voter_to_tallyer_msg.deserialize(voter_to_tallyer_cipher.first);
 
-  // // check that the user has not voted
-  // if (this->db_driver->voter_voted(voter_to_tallyer_msg.cert.id)) {
-  //   throw std::runtime_error("Voter has previously voted");
-  //   network_driver->disconnect();
-  //   return;
-  // }
+  // check that the user has not voted
+  if (this->db_driver->voter_voted(voter_to_tallyer_msg.cert.id)) {
+    throw std::runtime_error("Voter has previously voted");
+    network_driver->disconnect();
+    return;
+  }
 
-  // // verify the certificate from the registrar
-  // std::vector<unsigned char> id_plus_vk = 
-  //   concat_string_and_dsakey(voter_to_tallyer_msg.cert.id, voter_to_tallyer_msg.cert.verification_key);
-  // if (!(crypto_driver->DSA_verify(this->DSA_registrar_verification_key, id_plus_vk, voter_to_tallyer_msg.cert.registrar_signature))) {
-  //   throw std::runtime_error("Invalid registrar certificate provided by voter");
-  //   network_driver->disconnect();
-  //   return;
-  // }
+  // verify the certificate from the registrar
+  std::vector<unsigned char> id_plus_vk = 
+    concat_string_and_dsakey(voter_to_tallyer_msg.cert.id, voter_to_tallyer_msg.cert.verification_key);
+  if (!(crypto_driver->DSA_verify(this->DSA_registrar_verification_key, id_plus_vk, voter_to_tallyer_msg.cert.registrar_signature))) {
+    throw std::runtime_error("Invalid registrar certificate provided by voter");
+    network_driver->disconnect();
+    return;
+  }
 
-  // //verify the voter's signature
-  // std::vector<unsigned char> vote_plus_zkp = concat_vote_and_zkp(voter_to_tallyer_msg.vote, voter_to_tallyer_msg.zkp);
-  // if (!(crypto_driver->DSA_verify(voter_to_tallyer_msg.cert.verification_key, vote_plus_zkp, voter_to_tallyer_msg.voter_signature))) {
-  //   throw std::runtime_error("Invalid voter signature provided in voter to tallyer message");
-  //   network_driver->disconnect();
-  //   return;
-  // }
+  //verify the voter's signature
+  std::vector<unsigned char> vote_info_str = 
+    concat_votes_and_zkps(voter_to_tallyer_msg.votes, voter_to_tallyer_msg.zkps, 
+                          voter_to_tallyer_msg.vote_count, voter_to_tallyer_msg.count_zkps);
+  if (!(crypto_driver->DSA_verify(voter_to_tallyer_msg.cert.verification_key, vote_info_str, voter_to_tallyer_msg.voter_signature))) {
+    throw std::runtime_error("Invalid voter signature provided in voter to tallyer message");
+    network_driver->disconnect();
+    return;
+  }
 
-  // // check the zero-knowledge proof
-  // std::pair<Vote_Struct, VoteZKP_Struct> vote = std::make_pair(voter_to_tallyer_msg.vote, voter_to_tallyer_msg.zkp);
-  // if (!(ElectionClient::VerifyVoteZKP(vote, this->EG_arbiter_public_key))) {
-  //   throw std::runtime_error("Invalid zero-knowledge proof provided by voter");
-  //   network_driver->disconnect();
-  //   return;
-  // }
+  // check zkps for each vote
+  std::pair<Votes_Struct, VoteZKPs_Struct> votes = 
+    std::make_pair(voter_to_tallyer_msg.votes, voter_to_tallyer_msg.zkps);
+  if (!(ElectionClient::VerifyVoteZKPs(votes, this->EG_arbiter_public_key))) {
+    throw std::runtime_error("Invalid zkp provided by voter");
+    network_driver->disconnect();
+    return;
+  }
 
-  // // create a TallyerToWorld_Vote_Message, add the vote to the database, and mark voter as having voted
-  // TallyerToWorld_Vote_Message vote_row;
-  // vote_row.vote = voter_to_tallyer_msg.vote;
-  // vote_row.zkp = voter_to_tallyer_msg.zkp;
-  // vote_row.tallyer_signature = crypto_driver->DSA_sign(this->DSA_tallyer_signing_key, vote_plus_zkp);
+  // check zkps for vote count
+  std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count = 
+    std::make_pair(voter_to_tallyer_msg.vote_count, voter_to_tallyer_msg.count_zkps);
+  if (!(ElectionClient::VerifyCountZKPs(vote_count, this->EG_arbiter_public_key))) {
+    throw std::runtime_error("Invalid count zkp provided by voter");
+    network_driver->disconnect();
+    return;
+  }
 
-  // this->db_driver->insert_vote(vote_row);
-  // this->db_driver->insert_voted(voter_to_tallyer_msg.cert.id);
+  // create a TallyerToWorld_Vote_Message, add the votes to the database, and mark the voter as having voted
+  TallyerToWorld_Vote_Message vote_row;
+  vote_row.votes = voter_to_tallyer_msg.votes;
+  vote_row.zkps = voter_to_tallyer_msg.zkps;
+  vote_row.vote_count = voter_to_tallyer_msg.vote_count;
+  vote_row.count_zkps = voter_to_tallyer_msg.count_zkps;
+  vote_row.tallyer_signature = crypto_driver->DSA_sign(this->DSA_tallyer_signing_key, vote_info_str);
 
-  // // should tallyer disconnect?
-  // // ...
+  this->db_driver->insert_vote(vote_row);
+  this->db_driver->insert_voted(voter_to_tallyer_msg.cert.id);
 }
