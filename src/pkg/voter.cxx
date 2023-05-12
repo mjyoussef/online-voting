@@ -205,9 +205,8 @@ void VoterClient::HandleRegister(std::string input) {
 void VoterClient::HandleVote(std::string input) {
   // Parse input and connect to tallyer
   std::vector<std::string> args = string_split(input, ' ');
-  if (args.size() < 4) {
-    this->cli_driver->print_warning("usage: vote <address> <port> {0, 1}, ..., {0, 1}");
-    return;
+  if ((args.size() - 3) != this->num_candidates) {
+    this->cli_driver->print_warning("Must vote for exactly " + std::to_string(this->num_candidates) + " candidates");
   }
   this->network_driver->connect(args[1], std::stoi(args[2]));
 
@@ -269,20 +268,26 @@ void VoterClient::HandleVote(std::string input) {
  */
 void VoterClient::HandleVerify(std::string input) {
   // Verify
-  // auto result = this->DoVerify();
+  auto result = this->DoVerify();
 
-  // // Error if election failed
-  // if (!std::get<2>(result)) {
-  //   this->cli_driver->print_warning("Election failed!");
-  //   throw std::runtime_error("Election failed!");
-  // }
+  // Error if election failed
+  if (!std::get<2>(result)) {
+    this->cli_driver->print_warning("Election failed!");
+    throw std::runtime_error("Election failed!");
+  }
 
-  // // Print results
-  // this->cli_driver->print_success("Election succeeded!");
-  // this->cli_driver->print_success("Number of votes for 0: " +
-  //                                 CryptoPP::IntToString(std::get<0>(result)));
-  // this->cli_driver->print_success("Number of votes for 1: " +
-  //                                 CryptoPP::IntToString(std::get<1>(result)));
+  // Print results
+  std::vector<CryptoPP::Integer> zeros = std::get<0>(result);
+  std::vector<CryptoPP::Integer> ones = std::get<1>(result);
+  for (int i=0; i<this->num_candidates; i++) {
+    this->cli_driver->print_success("Election succeeded!");
+    std::string candidate = "Candidate " + std::to_string(i) + ": ";
+    this->cli_driver->print_success(candidate);
+    this->cli_driver->print_success("Number of votes for 0: " +
+                                    CryptoPP::IntToString(zeros[i]));
+    this->cli_driver->print_success("Number of votes for 1: " +
+                                    CryptoPP::IntToString(ones[i]));
+  }
 }
 
 /**
@@ -294,42 +299,54 @@ void VoterClient::HandleVerify(std::string input) {
  * If a vote is invalid, don't include it in the final combined vote or
  * throw an error either.
  */
-std::tuple<CryptoPP::Integer, CryptoPP::Integer, bool> VoterClient::DoVerify() {
+std::tuple<std::vector<CryptoPP::Integer>, std::vector<CryptoPP::Integer>, bool> VoterClient::DoVerify() {
   // TODO: implement me!
 
-  // std::vector<VoteRow> votes = this->db_driver->all_votes();
-  // std::vector<VoteRow> valid_votes;
+  std::vector<VoteRow> votes = this->db_driver->all_votes();
+  std::vector<VoteRow> valid_votes;
 
-  // for (int i=0; i<votes.size(); i++) {
-  //   std::pair<Vote_Struct, VoteZKP_Struct> vote = std::make_pair(votes[i].vote, votes[i].zkp);
-  //   if (!(ElectionClient::VerifyVoteZKP(vote, this->EG_arbiter_public_key))) {
-  //     continue;
-  //   }
+  for (int i=0; i<votes.size(); i++) {
+    std::pair<Votes_Struct, VoteZKPs_Struct> vote = std::make_pair(votes[i].votes, votes[i].zkps);
+    if (!(ElectionClient::VerifyVotesZKPs(vote, this->EG_arbiter_public_key))) {
+      continue;
+    }
 
-  //   std::vector<unsigned char> vote_plus_zkp = concat_vote_and_zkp(vote.first, vote.second);
-  //   if (!(this->crypto_driver->DSA_verify(this->DSA_tallyer_verification_key, vote_plus_zkp, votes[i].tallyer_signature))) {
-  //     continue;
-  //   }
+    std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count = std::make_pair(votes[i].vote_count, votes[i].count_zkps);
+    if (!(ElectionClient::VerifyCountZKPs(vote_count, this->EG_arbiter_public_key))) {
+      continue;
+    }
 
-  //   valid_votes.push_back(votes[i]);
-  // }
+    std::vector<unsigned char> vote_info_str = 
+      concat_votes_and_zkps(votes[i].votes, votes[i].zkps, votes[i].vote_count, votes[i].count_zkps);
+    if (!(this->crypto_driver->DSA_verify(this->DSA_tallyer_verification_key, vote_info_str))) {
+      continue;
+    }
 
-  // Vote_Struct combined_vote = ElectionClient::CombineVotes(valid_votes);
+    valid_votes.push_back(votes[i]);
+  }
 
-  // bool success = true;
-  // std::vector<PartialDecryptionRow> partial_dec_rows = this->db_driver->all_partial_decryptions();
-  // for (int i=0; i<partial_dec_rows.size(); i++) {
-  //   PartialDecryptionRow row = partial_dec_rows[i];
-  //   CryptoPP::Integer pki;
-  //   LoadInteger(row.arbiter_vk_path, &pki);
-  //   if (!(ElectionClient::VerifyPartialDecryptZKP(row, pki))) {
-  //     bool success = false;
-  //     break;
-  //   }
-  // }
+  Votes_Struct combined_votes = ElectionClient::CombineVotes(valid_votes, this->num_candidates);
 
-  // CryptoPP::Integer ones = ElectionClient::CombineResults(combined_vote, partial_dec_rows);
-  // CryptoPP::Integer zeros = valid_votes.size() - ones;
+  bool success = true;
+  std::vector<PartialDecryptionRow> partial_dec_rows = this->db_driver->all_partial_decryptions();
 
-  // return std::make_tuple(zeros, ones, success);
+  for (int i=0; i<partial_dec_rows.size(); i++) {
+    PartialDecryptionRow row = partial_dec_rows[i];
+    CryptoPP::Integer pki;
+    LoadInteger(row.arbiter_vk_path, &pki);
+    if (!(ElectionClient::VerifyPartialDecryptZKPs(row, pki))) {
+      success = false;
+      break;
+    }
+  }
+
+  std::vector<CryptoPP::Integer> zeros;
+
+  std::vector<CryptoPP::Integer> ones = ElectionClient::CombineResults(combined_votes, partial_dec_rows);
+  for (int i=0; i<ones.size(); i++) {
+    CryptoPP::Integer num_zeros(valid_votes.size() - ones[i]);
+    zeros.push_back(num_zeros);
+  }
+
+  return std::make_tuple(zeros, ones, success);
 }
