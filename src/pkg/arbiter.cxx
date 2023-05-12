@@ -21,7 +21,8 @@ ArbiterClient::ArbiterClient(ArbiterConfig arbiter_config,
   // Make shared variables.
   this->arbiter_config = arbiter_config;
   this->common_config = common_config;
-  this->k = common_config.candidates.size();
+  this->num_candidates = std::stoi(common_config.num_candidates);
+  this->k = std::stoi(common_config.k);
   this->cli_driver = std::make_shared<CLIDriver>();
   this->crypto_driver = std::make_shared<CryptoDriver>();
   this->db_driver = std::make_shared<DBDriver>();
@@ -102,36 +103,36 @@ void ArbiterClient::HandleKeygen(std::string _) {
 void ArbiterClient::HandleAdjudicate(std::string _) {
   // TODO: implement me!
 
-  // update the ElectionPublicKey
-  LoadElectionPublicKey(common_config.arbiter_public_key_paths, &this->EG_arbiter_public_key);
+  // // update the ElectionPublicKey
+  // LoadElectionPublicKey(common_config.arbiter_public_key_paths, &this->EG_arbiter_public_key);
 
-  std::vector<VoteRow> votes = this->db_driver->all_votes();
-  std::vector<VoteRow> valid_votes;
+  // std::vector<VoteRow> votes = this->db_driver->all_votes();
+  // std::vector<VoteRow> valid_votes;
 
-  for (int i=0; i<votes.size(); i++) {
-    std::pair<Vote_Struct, VoteZKP_Struct> vote = std::make_pair(votes[i].vote, votes[i].zkp);
-    if (!(ElectionClient::VerifyVoteZKP(vote, this->EG_arbiter_public_key))) {
-      continue;
-    }
+  // for (int i=0; i<votes.size(); i++) {
+  //   std::pair<Vote_Struct, VoteZKP_Struct> vote = std::make_pair(votes[i].vote, votes[i].zkp);
+  //   if (!(ElectionClient::VerifyVoteZKP(vote, this->EG_arbiter_public_key))) {
+  //     continue;
+  //   }
 
-    std::vector<unsigned char> vote_plus_zkp = concat_vote_and_zkp(vote.first, vote.second);
-    if (!(this->crypto_driver->DSA_verify(this->DSA_tallyer_verification_key, vote_plus_zkp, votes[i].tallyer_signature))) {
-      continue;
-    }
+  //   std::vector<unsigned char> vote_plus_zkp = concat_vote_and_zkp(vote.first, vote.second);
+  //   if (!(this->crypto_driver->DSA_verify(this->DSA_tallyer_verification_key, vote_plus_zkp, votes[i].tallyer_signature))) {
+  //     continue;
+  //   }
 
-    valid_votes.push_back(votes[i]);
-  }
+  //   valid_votes.push_back(votes[i]);
+  // }
 
-  Vote_Struct combined_votes = ElectionClient::CombineVotes(valid_votes);
+  // Vote_Struct combined_votes = ElectionClient::CombineVotes(valid_votes);
 
-  PartialDecryptionRow partial_dec_row;
-  partial_dec_row.arbiter_id = this->arbiter_config.arbiter_id;
-  partial_dec_row.arbiter_vk_path = this->arbiter_config.arbiter_public_key_path;
+  // PartialDecryptionRow partial_dec_row;
+  // partial_dec_row.arbiter_id = this->arbiter_config.arbiter_id;
+  // partial_dec_row.arbiter_vk_path = this->arbiter_config.arbiter_public_key_path;
   
-  std::pair<PartialDecryption_Struct, DecryptionZKP_Struct> p = 
-    ElectionClient::PartialDecrypt(combined_votes, this->EG_arbiter_public_key_i, this->EG_arbiter_secret_key);
-  partial_dec_row.dec = p.first;
-  partial_dec_row.zkp = p.second;
+  // std::pair<PartialDecryption_Struct, DecryptionZKP_Struct> p = 
+  //   ElectionClient::PartialDecrypt(combined_votes, this->EG_arbiter_public_key_i, this->EG_arbiter_secret_key);
+  // partial_dec_row.dec = p.first;
+  // partial_dec_row.zkp = p.second;
 
-  this->db_driver->insert_partial_decryption(partial_dec_row);
+  // this->db_driver->insert_partial_decryption(partial_dec_row);
 }

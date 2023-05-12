@@ -51,6 +51,7 @@ void DBDriver::init_tables() {
   std::string create_vote_query = "CREATE TABLE IF NOT EXISTS vote("
                                   "votes TEXT PRIMARY KEY  NOT NULL, "
                                   "zkps TEXT NOT NULL, "
+                                  "vote_count TEXT NOT NULL, "
                                   "count_zkps TEXT NOT NULL, "
                                   "signature TEXT NOT NULL);";
   exit = sqlite3_exec(this->db, create_vote_query.c_str(), NULL, 0, &err);
@@ -220,7 +221,7 @@ std::vector<VoteRow> DBDriver::all_votes() {
   // Lock db driver.
   std::unique_lock<std::mutex> lck(this->mtx);
   
-  std::string find_query = "SELECT votes, zkps, count_zkps, signature FROM vote";
+  std::string find_query = "SELECT votes, zkps, vote_count, count_zkps, signature FROM vote";
 
   // Prepare statement.
   sqlite3_stmt *stmt;
@@ -245,9 +246,13 @@ std::vector<VoteRow> DBDriver::all_votes() {
         break;
       case 2:
         data = str2chvec(std::string((const char *)raw_result, num_bytes));
-        vote.count_zkps.deserialize(data);
+        vote.vote_count.deserialize(data);
         break;
       case 3:
+        data = str2chvec(std::string((const char *)raw_result, num_bytes));
+        vote.count_zkps.deserialize(data);
+        break;
+      case 4:
         vote.tallyer_signature = std::string((const char *)raw_result, num_bytes);
         break;
       }
@@ -271,7 +276,7 @@ VoteRow DBDriver::find_vote(Vote_Struct vote_s) {
   std::unique_lock<std::mutex> lck(this->mtx);
   
   std::string find_query =
-      "SELECT votes, zkps, count_zkps, signature FROM vote WHERE vote = ?";
+      "SELECT votes, zkps, vote_count, count_zkps, signature FROM vote WHERE vote = ?";
 
   // Serialize cert.
   std::vector<unsigned char> vote_data;
@@ -301,9 +306,13 @@ VoteRow DBDriver::find_vote(Vote_Struct vote_s) {
         break;
       case 2:
         data = str2chvec(std::string((const char *)raw_result, num_bytes));
-        vote.count_zkps.deserialize(data);
+        vote.vote_count.deserialize(data);
         break;
       case 3:
+        data = str2chvec(std::string((const char *)raw_result, num_bytes));
+        vote.count_zkps.deserialize(data);
+        break;
+      case 4:
         vote.tallyer_signature = std::string((const char *)raw_result, num_bytes);
         break;
       }
@@ -336,6 +345,10 @@ VoteRow DBDriver::insert_vote(VoteRow vote) {
   std::vector<unsigned char> zkps_data;
   vote.zkps.serialize(zkps_data);
   std::string zkps_str = chvec2str(zkps_data);
+
+  std::vector<unsigned char> vote_count_data;
+  vote.vote_count.serialize(vote_count_data);
+  std::string vote_count_str = chvec2str(vote_count_data);
 
   std::vector<unsigned char> count_zkps_data;
   vote.count_zkps.serialize(count_zkps_data);

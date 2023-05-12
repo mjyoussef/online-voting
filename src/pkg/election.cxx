@@ -13,7 +13,7 @@ namespace {
 /**
  * Generate Vote and ZKP.
  */
-std::pair<Vote_Struct, VoteZKP_Struct>
+std::tuple<Vote_Struct, VoteZKP_Struct, CryptoPP::Integer>
 ElectionClient::GenerateVote(CryptoPP::Integer vote, CryptoPP::Integer pk) {
   // TODO: implement me!
   CryptoPP::AutoSeededRandomPool a_seed;
@@ -110,7 +110,31 @@ ElectionClient::GenerateVote(CryptoPP::Integer vote, CryptoPP::Integer pk) {
     zkp.r1 = (r1 + ((zkp.c1 * r) % DL_Q)) % DL_Q;
   }
 
-  return std::make_pair(vote_struct, zkp);
+  return std::make_tuple(vote_struct, zkp, r);
+}
+
+/**
+ * Generates votes and zkps
+*/
+std::tuple<Votes_Struct, VoteZKPs_Struct, CryptoPP::Integer>
+GenerateVotes(std::vector<CryptoPP::Integer> votes, CryptoPP::Integer pk) {
+
+  std::vector<Vote_Struct> votes_vec;
+  std::vector<VoteZKP_Struct> zkps_vec;
+  CryptoPP::Integer r = CryptoPP::Integer::Zero();
+
+  for (auto &vote : votes) {
+    std::tuple<Vote_Struct, VoteZKP_Struct, CryptoPP::Integer> vote_and_zkp = ElectionClient::GenerateVote(vote, pk);
+    votes_vec.push_back(std::get<0>(vote_and_zkp));
+    zkps_vec.push_back(std::get<1>(vote_and_zkp));
+    r += std::get<2>(vote_and_zkp);
+  }
+  Votes_Struct votes_struct;
+  votes_struct.votes = votes_vec;
+  VoteZKPs_Struct zkps_struct;
+  zkps_struct.zkps = zkps_vec;
+
+  return std::make_tuple(votes_struct, zkps_struct, r);
 }
 
 /**
@@ -152,11 +176,145 @@ bool ElectionClient::VerifyVoteZKP(std::pair<Vote_Struct, VoteZKP_Struct> vote,
 }
 
 /**
+ * Verifies vote zkps
+*/
+bool VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> votes, CryptoPP::Integer pk) {
+  std::vector<Vote_Struct> vote_structs = votes.first.votes;
+  std::vector<VoteZKP_Struct> zkps_structs = votes.second.zkps;
+
+  for (int i=0; i<vote_structs.size(); i++) {
+    std::pair<Vote_Struct, VoteZKP_Struct> vote = std::make_pair(vote_structs[i], zkps_structs[i]);
+    if (!(ElectionClient::VerifyVoteZKP(vote, pk))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Generates vote count zkp
+*/
+std::pair<Vote_Struct, Count_ZKPs_Struct> GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, 
+                                                            CryptoPP::Integer r, CryptoPP::Integer pk) {
+  CryptoPP::Integer c1 = CryptoPP::Integer::One();
+  CryptoPP::Integer c2 = CryptoPP::Integer::One();
+
+  for (int i=0; i<votes.size(); i++) {
+    c1 = (c1 * votes[i].a) % DL_P;
+    c2 = (c2 * votes[i].b) % DL_P;
+  }
+
+  Vote_Struct collective_vote;
+  collective_vote.a = c1;
+  collective_vote.b = c2;
+
+  // simulate zkp for every i not equal to `num_votes`
+  std::vector<Count_ZKP_Struct> count_zkps;
+  CryptoPP::Integer c_sum = CryptoPP::Integer::Zero();
+  for (int i=0; i<votes.size(); i++) {
+    if (i == num_votes) {
+      Count_ZKP_Struct count_zkp;
+      count_zkps.push_back(count_zkp);
+      continue;
+    }
+
+    CryptoPP::AutoSeededRandomPool seed1;
+    CryptoPP::Integer c(seed1, 1, DL_Q-1);
+    c_sum = (c_sum + c) % DL_Q;
+
+    CryptoPP::AutoSeededRandomPool seed2;
+    CryptoPP::Integer r_pp(seed2, 1, DL_Q-1);
+
+    CryptoPP::Integer pow(i);
+
+    CryptoPP::Integer g_pow = CryptoPP::ModularExponentiation(DL_G, pow, DL_P);
+    CryptoPP::Integer b_p = (c2 * CryptoPP::EuclideanMultiplicativeInverse(g_pow, DL_P)) % DL_P;
+
+    CryptoPP::Integer g_r_pp = CryptoPP::ModularExponentiation(DL_G, r_pp, DL_P);
+    CryptoPP::Integer a_c_i = CryptoPP::ModularExponentiation(c1, c, DL_P);
+
+    CryptoPP::Integer pk_r_pp = CryptoPP::ModularExponentiation(pk, r_pp, DL_P);
+    CryptoPP::Integer b_p_c_i = CryptoPP::ModularExponentiation(b_p, c, DL_P);
+
+    Count_ZKP_Struct count_zkp;
+    count_zkp.a_i = (g_r_pp * CryptoPP::EuclideanMultiplicativeInverse(a_c_i, DL_P)) % DL_P;
+    count_zkp.b_i = (pk_r_pp * CryptoPP::EuclideanMultiplicativeInverse(b_p_c_i, DL_P)) % DL_P;
+    count_zkp.c_i = c;
+    count_zkp.r_i = r_pp;
+    count_zkps.push_back(count_zkp);
+  }
+
+  // zkp for `num_votes`
+  Count_ZKP_Struct &num_votes_zkp = count_zkps[num_votes];
+
+  CryptoPP::AutoSeededRandomPool seed;
+  CryptoPP::Integer r_i(seed, 1, DL_Q-1);
+  num_votes_zkp.a_i = CryptoPP::ModularExponentiation(DL_G, r_i, DL_P);
+  num_votes_zkp.b_i = CryptoPP::ModularExponentiation(pk, r_i, DL_P);
+
+  std::vector<CryptoPP::Integer> a_vec;
+  std::vector<CryptoPP::Integer> b_vec;
+  for (int i=0; i<count_zkps.size(); i++) {
+    a_vec.push_back(count_zkps[i].a_i);
+    b_vec.push_back(count_zkps[i].b_i);
+  }
+
+  CryptoPP::Integer c = hash_count_zkp(pk, c1, c2, a_vec, b_vec);
+  CryptoPP::Integer c_i = (c_sum - c) % DL_Q;
+
+  num_votes_zkp.c_i = c_i;
+  num_votes_zkp.r_i = r_i + ((c_i * r) % DL_Q) % DL_Q;
+
+  Count_ZKPs_Struct count_zkps_struct;
+  count_zkps_struct.count_zkps = count_zkps;
+
+  return std::make_pair(collective_vote, count_zkps_struct);
+}
+
+/**
+ * Verifies vote count zkp
+*/
+bool VerifyCountZKPs(std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count, CryptoPP::Integer pk) {
+  CryptoPP::Integer a = vote_count.first.a;
+  CryptoPP::Integer b = vote_count.first.b;
+
+  CryptoPP::Integer c_sum = CryptoPP::Integer::Zero();
+  std::vector<CryptoPP::Integer> a_vec;
+  std::vector<CryptoPP::Integer> b_vec;
+  std::vector<Count_ZKP_Struct> count_zkps = vote_count.second.count_zkps;
+
+  for (int i=0; i<count_zkps.size(); i++) {
+    Count_ZKP_Struct count_zkp = count_zkps[i];
+    CryptoPP::Integer g_r_pp = CryptoPP::ModularExponentiation(DL_G, count_zkp.r_i, DL_P);
+    CryptoPP::Integer a_i_check = (count_zkp.a_i * (CryptoPP::ModularExponentiation(a, count_zkp.c_i, DL_P))) % DL_P;
+
+    CryptoPP::Integer pk_r_pp = CryptoPP::ModularExponentiation(pk, count_zkp.r_i, DL_P);
+    CryptoPP::Integer pow(i);
+    CryptoPP::Integer g_k_inv = 
+      CryptoPP::EuclideanMultiplicativeInverse(CryptoPP::ModularExponentiation(DL_G, pow, DL_P), DL_P);
+    CryptoPP::Integer b_g_k_inv_c_i = CryptoPP::ModularExponentiation(((b * g_k_inv) % DL_P), count_zkp.c_i, DL_P);
+    CryptoPP::Integer b_i_check = (count_zkp.b_i * b_g_k_inv_c_i) % DL_P;
+
+    if (!(g_r_pp == a_i_check) || !(pk_r_pp == b_i_check)) {
+      return false;
+    }
+
+    c_sum = (c_sum + count_zkp.c_i) % DL_Q;
+    a_vec.push_back(count_zkp.a_i);
+    b_vec.push_back(count_zkp.b_i);
+  }
+
+  CryptoPP::Integer c = hash_count_zkp(pk, a, b, a_vec, b_vec);
+  return (c_sum == c);
+}
+
+
+/**
  * Generate partial decryption and zkp.
  */
 std::pair<PartialDecryption_Struct, DecryptionZKP_Struct>
-ElectionClient::PartialDecrypt(Vote_Struct combined_vote, CryptoPP::Integer pk,
-                               CryptoPP::Integer sk) {
+ElectionClient::PartialDecrypt(Vote_Struct combined_vote, CryptoPP::Integer pk, CryptoPP::Integer sk) {
   // TODO: implement me!
 
   // generate the partial decryption
@@ -180,77 +338,131 @@ ElectionClient::PartialDecrypt(Vote_Struct combined_vote, CryptoPP::Integer pk,
   return std::make_pair(decryption_struct, zkp);
 }
 
+std::pair<PartialDecryptions_Struct, DecryptionZKPs_Struct>
+ElectionClient::PartialDecryptions(Votes_Struct combined_votes, CryptoPP::Integer pk, CryptoPP::Integer sk) {
+  std::vector<Vote_Struct> votes = combined_votes.votes;
+
+  std::vector<PartialDecryption_Struct> decs;
+  std::vector<DecryptionZKP_Struct> zkps;
+
+  for (auto &combined_vote : votes) {
+    std::pair<PartialDecryption_Struct, DecryptionZKP_Struct> dec = 
+      ElectionClient::PartialDecrypt(combined_vote, pk, sk);
+    
+    decs.push_back(dec.first);
+    zkps.push_back(dec.second);
+  }
+
+  PartialDecryptions_Struct decs_struct;
+  decs_struct.decs = decs;
+
+  DecryptionZKPs_Struct zkps_struct;
+  zkps_struct.zkps = zkps;
+
+  return std::make_pair(decs_struct, zkps_struct);
+}
+
 /**
  * Verify partial decryption zkp.
  */
-bool ElectionClient::VerifyPartialDecryptZKP(
+bool ElectionClient::VerifyPartialDecryptZKPs(
     ArbiterToWorld_PartialDecryption_Message a2w_dec_s, CryptoPP::Integer pki) {
   // TODO: implement me!
-  CryptoPP::Integer A = a2w_dec_s.zkp.v;
-  CryptoPP::Integer B = a2w_dec_s.zkp.u;
-  CryptoPP::Integer s = a2w_dec_s.zkp.s;
 
-  // sigma
-  CryptoPP::Integer sigma = hash_dec_zkp(pki, a2w_dec_s.dec.aggregate_ciphertext.a, a2w_dec_s.dec.aggregate_ciphertext.b, B, A);
+  std::vector<PartialDecryption_Struct> decs = a2w_dec_s.decs.decs;
+  std::vector<DecryptionZKP_Struct> zkps = a2w_dec_s.zkps.zkps;
 
-  // g^s
-  CryptoPP::Integer g_s = CryptoPP::ModularExponentiation(DL_G, s, DL_P);
+  for (int i=0; i<decs.size(); i++) {
+    CryptoPP::Integer A = zkps[i].v;
+    CryptoPP::Integer B = zkps[i].u;
+    CryptoPP::Integer s = zkps[i].s;
 
-  CryptoPP::Integer g_s_check = (A * CryptoPP::ModularExponentiation(pki, sigma, DL_P)) % DL_P;
+    // sigma
+    CryptoPP::Integer sigma = hash_dec_zkp(pki, decs[i].aggregate_ciphertext.a, decs[i].aggregate_ciphertext.b, B, A);
 
-  // c1^s
-  CryptoPP::Integer c1_s = CryptoPP::ModularExponentiation(a2w_dec_s.dec.aggregate_ciphertext.a, s, DL_P);
+    // g^s
+    CryptoPP::Integer g_s = CryptoPP::ModularExponentiation(DL_G, s, DL_P);
 
-  CryptoPP::Integer c1_s_check = (B * CryptoPP::ModularExponentiation(a2w_dec_s.dec.d, sigma, DL_P)) % DL_P;
+    CryptoPP::Integer g_s_check = (A * CryptoPP::ModularExponentiation(pki, sigma, DL_P)) % DL_P;
 
-  return (g_s == g_s_check) && (c1_s == c1_s_check);
+    // c1^s
+    CryptoPP::Integer c1_s = CryptoPP::ModularExponentiation(decs[i].aggregate_ciphertext.a, s, DL_P);
+
+    CryptoPP::Integer c1_s_check = (B * CryptoPP::ModularExponentiation(decs[i].d, sigma, DL_P)) % DL_P;
+
+    if (!(g_s == g_s_check) or !(c1_s == c1_s_check)) {
+      return false;
+    }
+  }
+
+  return true;
 }
+
 
 /**
  * Combine votes into one using homomorphic encryption.
  */
-Vote_Struct ElectionClient::CombineVotes(std::vector<VoteRow> all_votes) {
+Votes_Struct ElectionClient::CombineVotes(std::vector<VoteRow> all_votes, int num_candidates) {
   // TODO: implement me!
-  CryptoPP::Integer c1 = CryptoPP::Integer::One();
-  CryptoPP::Integer c2 = CryptoPP::Integer::One();
 
-  for (int i=0; i<all_votes.size(); i++) {
-    VoteRow row = all_votes[i];
-    c1 = (c1 * row.vote.a) % DL_P;
-    c2 = (c2 * row.vote.b) % DL_P;
+  std::vector<Vote_Struct> vote_structs;
+  for (int i=0; i<num_candidates; i++) { // iterate over each candidate
+    CryptoPP::Integer c1 = CryptoPP::Integer::One();
+    CryptoPP::Integer c2 = CryptoPP::Integer::One();
+
+    for (int j=0; j<all_votes.size(); j++) { // combines for each candidate
+      VoteRow row = all_votes[j];
+      c1 = (c1 * row.votes.votes[i].a) % DL_P;
+      c2 = (c2 * row.votes.votes[i].b) % DL_P;
+    }
+
+    Vote_Struct total_vote;
+    total_vote.a = c1;
+    total_vote.b = c2;
+
+    vote_structs.push_back(total_vote);
   }
 
-  Vote_Struct total_vote;
-  total_vote.a = c1;
-  total_vote.b = c2;
+  Votes_Struct collective_votes;
+  collective_votes.votes = vote_structs;
 
-  return total_vote;
+  return collective_votes;
 }
 
 /**
  * Combine partial decryptions into final result.
  */
-CryptoPP::Integer ElectionClient::CombineResults(
-    Vote_Struct combined_vote,
+std::vector<CryptoPP::Integer> ElectionClient::CombineResults(
+    Votes_Struct combined_votes,
     std::vector<PartialDecryptionRow> all_partial_decryptions) {
   // TODO: implement me!
-  CryptoPP::Integer result_exp = combined_vote.b;
 
-  for (int i=0; i<all_partial_decryptions.size(); i++) {
-    PartialDecryptionRow row = all_partial_decryptions[i];
-    CryptoPP::Integer d_inv = CryptoPP::EuclideanMultiplicativeInverse(row.dec.d, DL_P);
-    result_exp = (result_exp * d_inv) % DL_P;
-  }
+  std::vector<CryptoPP::Integer> combined_results;
+  std::vector<Vote_Struct> combined_votes_vecs = combined_votes.votes;
 
-  CryptoPP::Integer votes = CryptoPP::Integer::Zero();
-  while (true) {
-    CryptoPP::Integer g_votes = CryptoPP::ModularExponentiation(DL_G, votes, DL_P);
-    if (g_votes == result_exp) {
-      break;
+  for (int i=0; i<combined_votes_vecs.size(); i++) { // iterate over each candidate
+    Vote_Struct combined_vote = combined_votes_vecs[i];
+
+    CryptoPP::Integer result_exp = combined_vote.b;
+
+    for (auto &row : all_partial_decryptions) { // iterate over each arbiter
+      CryptoPP::Integer d = row.decs.decs[i].d;
+      CryptoPP::Integer d_inv = CryptoPP::EuclideanMultiplicativeInverse(d, DL_P);
+      result_exp = (result_exp * d_inv) % DL_P;
     }
 
-    votes += CryptoPP::Integer::One();
+    CryptoPP::Integer votes = CryptoPP::Integer::Zero();
+    while (true) {
+      CryptoPP::Integer g_votes = CryptoPP::ModularExponentiation(DL_G, votes, DL_P);
+      if (g_votes == result_exp) {
+        break;
+      }
+
+      votes += CryptoPP::Integer::One();
+    }
+
+    combined_results.push_back(votes);
   }
 
-  return votes;
+  return combined_results;
 }

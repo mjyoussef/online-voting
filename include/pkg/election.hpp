@@ -17,20 +17,33 @@
 
 class ElectionClient {
 public:
-  static std::pair<Vote_Struct, VoteZKP_Struct>
+  static std::tuple<Vote_Struct, VoteZKP_Struct, CryptoPP::Integer>
   GenerateVote(CryptoPP::Integer vote, CryptoPP::Integer pk);
-  static bool VerifyVoteZKP(std::pair<Vote_Struct, VoteZKP_Struct> vote,
-                            CryptoPP::Integer pk);
+  static std::tuple<Votes_Struct, VoteZKPs_Struct, CryptoPP::Integer>
+  GenerateVotes(std::vector<CryptoPP::Integer> votes, CryptoPP::Integer pk);
+
+  static bool VerifyVoteZKP(std::pair<Vote_Struct, VoteZKP_Struct> vote, CryptoPP::Integer pk);
+  static bool VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> votes, CryptoPP::Integer pk);
+
+  static std::pair<Vote_Struct, Count_ZKPs_Struct>
+  GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, CryptoPP::Integer r, CryptoPP::Integer pk);
+
+  static bool VerifyCountZKPs(std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count, CryptoPP::Integer pk);
 
   static std::pair<PartialDecryption_Struct, DecryptionZKP_Struct>
   PartialDecrypt(Vote_Struct combined_vote, CryptoPP::Integer pk,
                  CryptoPP::Integer sk);
+  
+  static std::pair<PartialDecryptions_Struct, DecryptionZKPs_Struct>
+  PartialDecryptions(Votes_Struct combined_votes, CryptoPP::Integer pk, CryptoPP::Integer sk);
+
   static bool
-  VerifyPartialDecryptZKP(ArbiterToWorld_PartialDecryption_Message a2w_dec_s,
+  VerifyPartialDecryptZKPs(ArbiterToWorld_PartialDecryption_Message a2w_dec_s,
                           CryptoPP::Integer pki);
 
-  static Vote_Struct CombineVotes(std::vector<VoteRow> all_votes);
-  static CryptoPP::Integer
-  CombineResults(Vote_Struct combined_vote,
+  static Votes_Struct CombineVotes(std::vector<VoteRow> all_votes, int num_candidates);
+  
+  static std::vector<CryptoPP::Integer>
+  CombineResults(Votes_Struct combined_vote,
                  std::vector<PartialDecryptionRow> all_partial_decryptions);
 };

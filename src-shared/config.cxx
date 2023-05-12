@@ -42,11 +42,10 @@ CommonConfig load_common_config(std::string filename) {
   config.tallyer_verification_key_path =
       root.get<std::string>("tallyer_verification_key_path", "");
   
-  std::vector<std::string> candidates;
-  for (auto candidate : as_vector<std::string>(root, "candidates")) {
-    candidates.push_back(candidate);
-  }
-  config.candidates = candidates;
+  config.num_candidates = 
+    root.get<std::string>("num_candidates", "");
+  config.k =
+    root.get<std::string>("k", "");
 
   return config;
 }

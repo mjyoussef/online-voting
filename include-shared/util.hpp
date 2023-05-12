@@ -43,6 +43,10 @@ CryptoPP::Integer hash_vote_zkp(CryptoPP::Integer pk, CryptoPP::Integer a,
                                 CryptoPP::Integer b0_p, CryptoPP::Integer a1_p,
                                 CryptoPP::Integer b1_p);
 
+CryptoPP::Integer hash_count_zkp(CryptoPP::Integer pk, CryptoPP::Integer a,
+                                CryptoPP::Integer b, std::vector<CryptoPP::Integer> a_vec,
+                                std::vector<CryptoPP::Integer> b_vec);
+
 CryptoPP::Integer hash_dec_zkp(CryptoPP::Integer pk, CryptoPP::Integer a,
                                CryptoPP::Integer b, CryptoPP::Integer u,
                                CryptoPP::Integer v);

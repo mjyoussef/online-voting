@@ -16,7 +16,8 @@ struct CommonConfig {
   std::vector<std::string> arbiter_public_key_paths;
   std::string registrar_verification_key_path;
   std::string tallyer_verification_key_path;
-  std::vector<std::string> candidates;
+  std::string num_candidates; // number of candiates in ballot
+  std::string k; // maximum number of candidates a voter can vote for
 };
 CommonConfig load_common_config(std::string filename);
 

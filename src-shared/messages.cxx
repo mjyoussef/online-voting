@@ -348,7 +348,7 @@ int Votes_Struct::deserialize(std::vector<unsigned char> &data) {
   for (int i=0; i<num_votes; i++) {
     Vote_Struct vote;
     std::vector<unsigned char> vote_data = 
-      std::vector<unsigned_char>(data.begin() + n, data.end());
+      std::vector<unsigned char>(data.begin() + n, data.end());
     
     n += vote.deserialize(vote_data);
     votes.push_back(vote);
@@ -492,7 +492,7 @@ int Count_ZKPs_Struct::deserialize(std::vector<unsigned char> &data) {
       std::vector<unsigned char>(data.begin() + n, data.end());
     
     n += zkp.deserialize(zkp_data);
-    zkps.push_back(zkp);
+    count_zkps.push_back(zkp);
   }
   this->count_zkps = count_zkps;
   
@@ -513,11 +513,15 @@ void VoterToTallyer_Vote_Message::serialize(std::vector<unsigned char> &data) {
 
   std::vector<unsigned char> votes_data;
   this->votes.serialize(votes_data);
-  data.insert(data.end(), votes.data.begin(), votes.data.end());
+  data.insert(data.end(), votes_data.begin(), votes_data.end());
 
   std::vector<unsigned char> zkps_data;
   this->zkps.serialize(zkps_data);
   data.insert(data.end(), zkps_data.begin(), zkps_data.end());
+
+  std::vector<unsigned char> vote_count_data;
+  this->vote_count.serialize(vote_count_data);
+  data.insert(data.end(), vote_count_data.begin(), vote_count_data.end());
 
   std::vector<unsigned char> count_zkps_data;
   this->count_zkps.serialize(count_zkps_data);
@@ -544,6 +548,10 @@ int VoterToTallyer_Vote_Message::deserialize(std::vector<unsigned char> &data) {
     std::vector<unsigned char>(data.begin() + n, data.end());
   n += this->zkps.deserialize(zkps_data);
 
+  std::vector<unsigned char> vote_count_data =
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->vote_count.deserialize(vote_count_data);
+
   std::vector<unsigned char> count_zkps_data = 
     std::vector<unsigned char>(data.begin() + n, data.end());
   n += this->count_zkps.deserialize(count_zkps_data);
@@ -562,11 +570,15 @@ void TallyerToWorld_Vote_Message::serialize(std::vector<unsigned char> &data) {
   // Add fields.
   std::vector<unsigned char> votes_data;
   this->votes.serialize(votes_data);
-  data.insert(data.end(), votes.data.begin(), votes.data.end());
+  data.insert(data.end(), votes_data.begin(), votes_data.end());
 
   std::vector<unsigned char> zkps_data;
   this->zkps.serialize(zkps_data);
   data.insert(data.end(), zkps_data.begin(), zkps_data.end());
+
+  std::vector<unsigned char> vote_count_data;
+  this->vote_count.serialize(vote_count_data);
+  data.insert(data.end(), vote_count_data.begin(), vote_count_data.end());
 
   std::vector<unsigned char> count_zkps_data;
   this->count_zkps.serialize(count_zkps_data);
@@ -583,6 +595,7 @@ int TallyerToWorld_Vote_Message::deserialize(std::vector<unsigned char> &data) {
   assert(data[0] == MessageType::TallyerToWorld_Vote_Message);
 
   // Get fields.
+  int n = 1;
   std::vector<unsigned char> votes_data = 
     std::vector<unsigned char>(data.begin() + n, data.end());
   n += this->votes.deserialize(votes_data);
@@ -590,6 +603,10 @@ int TallyerToWorld_Vote_Message::deserialize(std::vector<unsigned char> &data) {
   std::vector<unsigned char> zkps_data = 
     std::vector<unsigned char>(data.begin() + n, data.end());
   n += this->zkps.deserialize(zkps_data);
+
+  std::vector<unsigned char> vote_count_data =
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->vote_count.deserialize(vote_count_data);
 
   std::vector<unsigned char> count_zkps_data = 
     std::vector<unsigned char>(data.begin() + n, data.end());
@@ -860,17 +877,25 @@ concat_byteblock_and_cert(CryptoPP::SecByteBlock &b,
 /**
  * Concatenate a vote and zkp into vector of unsigned char
  */
-std::vector<unsigned char> concat_vote_and_zkp(Vote_Struct &vote,
-                                               VoteZKP_Struct &zkp) {
+std::vector<unsigned char> concat_votes_and_zkps(Votes_Struct &votes,
+                                               VoteZKPs_Struct &zkps,
+                                               Vote_Struct &vote_count,
+                                               Count_ZKPs_Struct &count_zkps) {
   // Serialize vote and zkp.
-  std::vector<unsigned char> vote_data;
-  vote.serialize(vote_data);
-  std::vector<unsigned char> zkp_data;
-  zkp.serialize(zkp_data);
+  std::vector<unsigned char> votes_data;
+  votes.serialize(vote_data);
+  std::vector<unsigned char> zkps_data;
+  zkps.serialize(zkps_data);
+  std::vector<unsigned char> vote_count_data;
+  vote_count.serialize(vote_count_data);
+  std::vector<unsigned char> count_zkps_data;
+  count_zkps.serialize(count_zkps_data);
 
   // Concat data to vec.
   std::vector<unsigned char> v;
-  v.insert(v.end(), vote_data.begin(), vote_data.end());
-  v.insert(v.end(), zkp_data.begin(), zkp_data.end());
+  v.insert(v.end(), votes_data.begin(), votes_data.end());
+  v.insert(v.end(), zkps_data.begin(), zkps_data.end());
+  v.insert(v.end(), vote_count_data.begin(), vote_count_data.end());
+  v.insert(v.end(), count_zkps_data.begin(), count_zkps_data.end());
   return v;
 }

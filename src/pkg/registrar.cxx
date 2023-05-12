@@ -19,7 +19,8 @@ RegistrarClient::RegistrarClient(RegistrarConfig registrar_config,
   // Make shared variables.
   this->registrar_config = registrar_config;
   this->common_config = common_config;
-  this->k = common_config.candidates.size();
+  this->num_candidates = std::stoi(common_config.num_candidates);
+  this->k = std::stoi(common_config.k);
   this->cli_driver = std::make_shared<CLIDriver>();
   this->db_driver = std::make_shared<DBDriver>();
   this->db_driver->open(this->common_config.db_path);
@@ -152,39 +153,39 @@ void RegistrarClient::HandleRegister(
     std::shared_ptr<CryptoDriver> crypto_driver) {
   // TODO: implement me!
 
-  // handle key exchange with voter
-  std::pair<CryptoPP::SecByteBlock, CryptoPP::SecByteBlock> keys = this->HandleKeyExchange(network_driver, crypto_driver);
+  // // handle key exchange with voter
+  // std::pair<CryptoPP::SecByteBlock, CryptoPP::SecByteBlock> keys = this->HandleKeyExchange(network_driver, crypto_driver);
 
-  // get the VoterToRegistrar_Register_Message
-  VoterToRegistrar_Register_Message voter_register_msg;
-  std::vector<unsigned char> voter_register_msg_raw = network_driver->read();
-  std::pair<std::vector<unsigned char>, bool> decrypted_voter_register_msg_raw = 
-    crypto_driver->decrypt_and_verify(keys.first, keys.second, voter_register_msg_raw);
-  if (!(decrypted_voter_register_msg_raw.second)) {
-    throw std::runtime_error("Unverified voter to registrar registration msg");
-  }
-  voter_register_msg.deserialize(decrypted_voter_register_msg_raw.first);
+  // // get the VoterToRegistrar_Register_Message
+  // VoterToRegistrar_Register_Message voter_register_msg;
+  // std::vector<unsigned char> voter_register_msg_raw = network_driver->read();
+  // std::pair<std::vector<unsigned char>, bool> decrypted_voter_register_msg_raw = 
+  //   crypto_driver->decrypt_and_verify(keys.first, keys.second, voter_register_msg_raw);
+  // if (!(decrypted_voter_register_msg_raw.second)) {
+  //   throw std::runtime_error("Unverified voter to registrar registration msg");
+  // }
+  // voter_register_msg.deserialize(decrypted_voter_register_msg_raw.first);
 
-  // if the user's certificate has already been stored, return it
-  RegistrarToVoter_Certificate_Message voter_row = this->db_driver->find_voter(voter_register_msg.id);
-  if (voter_row.id != "") {
-    std::vector<unsigned char> encrypted_cert = crypto_driver->encrypt_and_tag(keys.first, keys.second, &voter_row);
-    network_driver->send(encrypted_cert);
-    network_driver->disconnect();
-    return;
-  }
+  // // if the user's certificate has already been stored, return it
+  // RegistrarToVoter_Certificate_Message voter_row = this->db_driver->find_voter(voter_register_msg.id);
+  // if (voter_row.id != "") {
+  //   std::vector<unsigned char> encrypted_cert = crypto_driver->encrypt_and_tag(keys.first, keys.second, &voter_row);
+  //   network_driver->send(encrypted_cert);
+  //   network_driver->disconnect();
+  //   return;
+  // }
 
-  // otherwise, populate the voter row and insert the voter into the database
-  voter_row.id = voter_register_msg.id;
-  voter_row.verification_key = voter_register_msg.user_verification_key;
+  // // otherwise, populate the voter row and insert the voter into the database
+  // voter_row.id = voter_register_msg.id;
+  // voter_row.verification_key = voter_register_msg.user_verification_key;
 
-  std::vector<unsigned char> id_plus_vk = concat_string_and_dsakey(voter_row.id, voter_row.verification_key);
-  voter_row.registrar_signature = crypto_driver->DSA_sign(this->DSA_registrar_signing_key, id_plus_vk);
+  // std::vector<unsigned char> id_plus_vk = concat_string_and_dsakey(voter_row.id, voter_row.verification_key);
+  // voter_row.registrar_signature = crypto_driver->DSA_sign(this->DSA_registrar_signing_key, id_plus_vk);
 
-  this->db_driver->insert_voter(voter_row);
+  // this->db_driver->insert_voter(voter_row);
 
-  // encrypt certificate and send to the voter
-  std::vector<unsigned char> encrypted_cert = crypto_driver->encrypt_and_tag(keys.first, keys.second, &voter_row);
-  network_driver->send(encrypted_cert);
-  network_driver->disconnect();
+  // // encrypt certificate and send to the voter
+  // std::vector<unsigned char> encrypted_cert = crypto_driver->encrypt_and_tag(keys.first, keys.second, &voter_row);
+  // network_driver->send(encrypted_cert);
+  // network_driver->disconnect();
 }

@@ -137,7 +137,7 @@ struct Votes_Struct : public Serializable {
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
-}
+};
 
 // Struct for a dcp zkp of vote (a, b):
 // (aβ, bβ, cβ, rβ) = (g^r, pk^r, cβ, r''β)
@@ -160,7 +160,7 @@ struct VoteZKPs_Struct : public Serializable {
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
-}
+};
 
 struct Count_ZKP_Struct : public Serializable {
   CryptoPP::Integer a_i;
@@ -170,21 +170,23 @@ struct Count_ZKP_Struct : public Serializable {
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
-}
+};
 
 struct Count_ZKPs_Struct : public Serializable {
   std::vector<Count_ZKP_Struct> count_zkps;
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
-}
+};
 
 struct VoterToTallyer_Vote_Message : public Serializable {
   RegistrarToVoter_Certificate_Message cert;
   Votes_Struct votes;
   VoteZKPs_Struct zkps;
+
+  Vote_Struct vote_count;
   Count_ZKPs_Struct count_zkps;
-  std::string voter_signature; // computed on votes, zkps, and count_zkps
+  std::string voter_signature; // computed on votes, zkps, vote_count, and count_zkps
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
@@ -193,8 +195,10 @@ struct VoterToTallyer_Vote_Message : public Serializable {
 struct TallyerToWorld_Vote_Message : public Serializable {
   Votes_Struct votes;
   VoteZKPs_Struct zkps;
+
+  Vote_Struct vote_count;
   Count_ZKPs_Struct count_zkps;
-  std::string tallyer_signature; // computed on votes, zkps, and count_zkps
+  std::string tallyer_signature; // computed on votes, zkps, vote_count, and count_zkps
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
@@ -218,7 +222,7 @@ struct PartialDecryptions_Struct : public Serializable {
 
   void serialize(std::vector<unsigned char> &data);
   int deserialize(std::vector<unsigned char> &data);
-}
+};
 
 // Struct for a pd zkp of vote (a, b): (u, v, s) = (g^r, a^r, s)
 struct DecryptionZKP_Struct : public Serializable {
@@ -259,5 +263,7 @@ std::vector<unsigned char> concat_byteblocks(CryptoPP::SecByteBlock &b1,
 std::vector<unsigned char>
 concat_byteblock_and_cert(CryptoPP::SecByteBlock &b,
                           RegistrarToVoter_Certificate_Message &cert);
-std::vector<unsigned char> concat_vote_and_zkp(Vote_Struct &vote,
-                                               VoteZKP_Struct &zkp);
+std::vector<unsigned char> concat_votes_and_zkps(Votes_Struct &votes,
+                                               VoteZKPs_Struct &zkps,
+                                               Vote_Struct &vote_count,
+                                               Count_ZKPs_Struct &count_zkps);

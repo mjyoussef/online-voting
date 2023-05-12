@@ -34,6 +34,8 @@ private:
 
   VoterConfig voter_config;
   CommonConfig common_config;
+  int num_candidates;
+  int k;
   std::shared_ptr<CLIDriver> cli_driver;
   std::shared_ptr<CryptoDriver> crypto_driver;
   std::shared_ptr<DBDriver> db_driver;
