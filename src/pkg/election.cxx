@@ -182,7 +182,7 @@ bool ElectionClient::VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> vot
   std::vector<Vote_Struct> vote_structs = votes.first.votes;
   std::vector<VoteZKP_Struct> zkps_structs = votes.second.zkps;
 
-  for (int i=0; i<vote_structs.size(); i++) {
+  for (int i=0; i<vote_structs.size(); i++) { // iterate over each vote casted by a voter
     std::pair<Vote_Struct, VoteZKP_Struct> vote = std::make_pair(vote_structs[i], zkps_structs[i]);
     if (!(ElectionClient::VerifyVoteZKP(vote, pk))) {
       return false;
@@ -194,10 +194,15 @@ bool ElectionClient::VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> vot
 
 /**
  * Generates vote count zkp
+ * Vote_Struct : (a,b) = (g^{r_1 + r_2 + ... + r_{num_candidates}}, pk^{r_1 + r_2 + ... + r_{num_candidates}}g^{num_votes})
+ * Count_ZKPs_Struct: OR ZKP for each number of allowable votes
 */
 std::pair<Vote_Struct, Count_ZKPs_Struct> 
 ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, 
                                   CryptoPP::Integer r, CryptoPP::Integer pk) {
+  
+
+  // Create Vote_Struct
   CryptoPP::Integer c1 = CryptoPP::Integer::One();
   CryptoPP::Integer c2 = CryptoPP::Integer::One();
 
@@ -213,13 +218,14 @@ ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes,
   // simulate zkp for every i not equal to `num_votes`
   std::vector<Count_ZKP_Struct> count_zkps;
   CryptoPP::Integer c_sum = CryptoPP::Integer::Zero();
-  for (int i=0; i<votes.size(); i++) {
+  for (int i=0; i<=votes.size(); i++) { // total number of votes that could have been casted
     if (i == num_votes) {
       Count_ZKP_Struct count_zkp;
       count_zkps.push_back(count_zkp);
       continue;
     }
 
+    // update c_sum
     CryptoPP::AutoSeededRandomPool seed1;
     CryptoPP::Integer c(seed1, 1, DL_Q-1);
     c_sum = (c_sum + c) % DL_Q;
@@ -262,7 +268,7 @@ ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes,
   }
 
   CryptoPP::Integer c = hash_count_zkp(pk, c1, c2, a_vec, b_vec);
-  CryptoPP::Integer c_i = (c_sum - c) % DL_Q;
+  CryptoPP::Integer c_i = (c - c_sum) % DL_Q;
 
   num_votes_zkp.c_i = c_i;
   num_votes_zkp.r_i = r_i + ((c_i * r) % DL_Q) % DL_Q;
