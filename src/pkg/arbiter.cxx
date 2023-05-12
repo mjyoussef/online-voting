@@ -110,8 +110,8 @@ void ArbiterClient::HandleAdjudicate(std::string _) {
   std::vector<VoteRow> valid_votes;
 
   for (int i=0; i<votes.size(); i++) {
-    std::pair<Votes_Struct, VoteZKPs_Struct> votes = std::make_pair(votes[i].votes, votes[i].zkps);
-    if (!(ElectionClient::VerifyVoteZKPs(votes, this->EG_arbiter_public_key))) {
+    std::pair<Votes_Struct, VoteZKPs_Struct> votes_pair = std::make_pair(votes[i].votes, votes[i].zkps);
+    if (!(ElectionClient::VerifyVoteZKPs(votes_pair, this->EG_arbiter_public_key))) {
       continue;
     }
 
@@ -130,7 +130,7 @@ void ArbiterClient::HandleAdjudicate(std::string _) {
   partial_dec_row.arbiter_id = this->arbiter_config.arbiter_id;
   partial_dec_row.arbiter_vk_path = this->arbiter_config.arbiter_public_key_path;
   
-  std::pair<PartialDecryption_Struct, DecryptionZKP_Struct> p = 
+  std::pair<PartialDecryptions_Struct, DecryptionZKPs_Struct> p = 
     ElectionClient::PartialDecryptions(combined_votes, this->EG_arbiter_public_key_i, this->EG_arbiter_secret_key);
   partial_dec_row.decs = p.first;
   partial_dec_row.zkps = p.second;

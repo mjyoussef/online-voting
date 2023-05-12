@@ -251,7 +251,7 @@ void VoterClient::HandleVote(std::string input) {
   voter_to_tallyer_msg.vote_count = count_zkps.first;
   voter_to_tallyer_msg.count_zkps = count_zkps.second;
 
-  std::string vote_info_str = 
+  std::vector<unsigned char> vote_info_str = 
     concat_votes_and_zkps(votes_struct, zkps_struct, count_zkps.first, count_zkps.second); 
   voter_to_tallyer_msg.voter_signature = 
     this->crypto_driver->DSA_sign(this->DSA_voter_signing_key, vote_info_str);
@@ -307,7 +307,7 @@ std::tuple<std::vector<CryptoPP::Integer>, std::vector<CryptoPP::Integer>, bool>
 
   for (int i=0; i<votes.size(); i++) {
     std::pair<Votes_Struct, VoteZKPs_Struct> vote = std::make_pair(votes[i].votes, votes[i].zkps);
-    if (!(ElectionClient::VerifyVotesZKPs(vote, this->EG_arbiter_public_key))) {
+    if (!(ElectionClient::VerifyVoteZKPs(vote, this->EG_arbiter_public_key))) {
       continue;
     }
 
@@ -318,7 +318,7 @@ std::tuple<std::vector<CryptoPP::Integer>, std::vector<CryptoPP::Integer>, bool>
 
     std::vector<unsigned char> vote_info_str = 
       concat_votes_and_zkps(votes[i].votes, votes[i].zkps, votes[i].vote_count, votes[i].count_zkps);
-    if (!(this->crypto_driver->DSA_verify(this->DSA_tallyer_verification_key, vote_info_str))) {
+    if (!(this->crypto_driver->DSA_verify(this->DSA_tallyer_verification_key, vote_info_str, votes[i].tallyer_signature))) {
       continue;
     }
 

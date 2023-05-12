@@ -883,7 +883,7 @@ std::vector<unsigned char> concat_votes_and_zkps(Votes_Struct &votes,
                                                Count_ZKPs_Struct &count_zkps) {
   // Serialize vote and zkp.
   std::vector<unsigned char> votes_data;
-  votes.serialize(vote_data);
+  votes.serialize(votes_data);
   std::vector<unsigned char> zkps_data;
   zkps.serialize(zkps_data);
   std::vector<unsigned char> vote_count_data;

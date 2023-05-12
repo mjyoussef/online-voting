@@ -117,7 +117,7 @@ ElectionClient::GenerateVote(CryptoPP::Integer vote, CryptoPP::Integer pk) {
  * Generates votes and zkps
 */
 std::tuple<Votes_Struct, VoteZKPs_Struct, CryptoPP::Integer>
-GenerateVotes(std::vector<CryptoPP::Integer> votes, CryptoPP::Integer pk) {
+ElectionClient::GenerateVotes(std::vector<CryptoPP::Integer> votes, CryptoPP::Integer pk) {
 
   std::vector<Vote_Struct> votes_vec;
   std::vector<VoteZKP_Struct> zkps_vec;
@@ -178,7 +178,7 @@ bool ElectionClient::VerifyVoteZKP(std::pair<Vote_Struct, VoteZKP_Struct> vote,
 /**
  * Verifies vote zkps
 */
-bool VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> votes, CryptoPP::Integer pk) {
+bool ElectionClient::VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> votes, CryptoPP::Integer pk) {
   std::vector<Vote_Struct> vote_structs = votes.first.votes;
   std::vector<VoteZKP_Struct> zkps_structs = votes.second.zkps;
 
@@ -195,8 +195,9 @@ bool VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> votes, CryptoPP::In
 /**
  * Generates vote count zkp
 */
-std::pair<Vote_Struct, Count_ZKPs_Struct> GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, 
-                                                            CryptoPP::Integer r, CryptoPP::Integer pk) {
+std::pair<Vote_Struct, Count_ZKPs_Struct> 
+ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, 
+                                  CryptoPP::Integer r, CryptoPP::Integer pk) {
   CryptoPP::Integer c1 = CryptoPP::Integer::One();
   CryptoPP::Integer c2 = CryptoPP::Integer::One();
 
@@ -275,7 +276,7 @@ std::pair<Vote_Struct, Count_ZKPs_Struct> GenerateCountZKPs(std::vector<Vote_Str
 /**
  * Verifies vote count zkp
 */
-bool VerifyCountZKPs(std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count, CryptoPP::Integer pk) {
+bool ElectionClient::VerifyCountZKPs(std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count, CryptoPP::Integer pk) {
   CryptoPP::Integer a = vote_count.first.a;
   CryptoPP::Integer b = vote_count.first.b;
 
