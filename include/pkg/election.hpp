@@ -26,7 +26,7 @@ public:
   static bool VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> votes, CryptoPP::Integer pk);
 
   static std::pair<Vote_Struct, Count_ZKPs_Struct>
-  GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, CryptoPP::Integer r, CryptoPP::Integer pk);
+  GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, int k, CryptoPP::Integer r, CryptoPP::Integer pk);
 
   static bool VerifyCountZKPs(std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count, CryptoPP::Integer pk);
 

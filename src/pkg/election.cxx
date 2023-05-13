@@ -35,7 +35,6 @@ ElectionClient::GenerateVote(CryptoPP::Integer vote, CryptoPP::Integer pk) {
   VoteZKP_Struct zkp;
   // handle zero in the default case
   if (vote == CryptoPP::Integer::Zero()) {
-    std::cout<<"Handling zero"<<std::endl;
 
     // c1
     CryptoPP::AutoSeededRandomPool a_c1;
@@ -198,7 +197,7 @@ bool ElectionClient::VerifyVoteZKPs(std::pair<Votes_Struct, VoteZKPs_Struct> vot
  * Count_ZKPs_Struct: OR ZKP for each number of allowable votes
 */
 std::pair<Vote_Struct, Count_ZKPs_Struct> 
-ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, 
+ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes, int k,
                                   CryptoPP::Integer r, CryptoPP::Integer pk) {
   
 
@@ -218,7 +217,7 @@ ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes,
   // simulate zkp for every i not equal to `num_votes`
   std::vector<Count_ZKP_Struct> count_zkps;
   CryptoPP::Integer c_sum = CryptoPP::Integer::Zero();
-  for (int i=0; i<=votes.size(); i++) { // total number of votes that could have been casted
+  for (int i=0; i<=k; i++) { // max number of votes that could have been casted
     if (i == num_votes) {
       Count_ZKP_Struct count_zkp;
       count_zkps.push_back(count_zkp);
@@ -252,26 +251,28 @@ ElectionClient::GenerateCountZKPs(std::vector<Vote_Struct> votes, int num_votes,
     count_zkps.push_back(count_zkp);
   }
 
-  // zkp for `num_votes`
-  Count_ZKP_Struct &num_votes_zkp = count_zkps[num_votes];
+  if (num_votes <= k) {
+    // zkp for `num_votes`
+    Count_ZKP_Struct &num_votes_zkp = count_zkps[num_votes];
 
-  CryptoPP::AutoSeededRandomPool seed;
-  CryptoPP::Integer r_i(seed, 1, DL_Q-1);
-  num_votes_zkp.a_i = CryptoPP::ModularExponentiation(DL_G, r_i, DL_P);
-  num_votes_zkp.b_i = CryptoPP::ModularExponentiation(pk, r_i, DL_P);
+    CryptoPP::AutoSeededRandomPool seed;
+    CryptoPP::Integer r_i(seed, 1, DL_Q-1);
+    num_votes_zkp.a_i = CryptoPP::ModularExponentiation(DL_G, r_i, DL_P);
+    num_votes_zkp.b_i = CryptoPP::ModularExponentiation(pk, r_i, DL_P);
 
-  std::vector<CryptoPP::Integer> a_vec;
-  std::vector<CryptoPP::Integer> b_vec;
-  for (int i=0; i<count_zkps.size(); i++) {
-    a_vec.push_back(count_zkps[i].a_i);
-    b_vec.push_back(count_zkps[i].b_i);
+    std::vector<CryptoPP::Integer> a_vec;
+    std::vector<CryptoPP::Integer> b_vec;
+    for (int i=0; i<count_zkps.size(); i++) {
+      a_vec.push_back(count_zkps[i].a_i);
+      b_vec.push_back(count_zkps[i].b_i);
+    }
+
+    CryptoPP::Integer c = hash_count_zkp(pk, c1, c2, a_vec, b_vec);
+    CryptoPP::Integer c_i = (c - c_sum) % DL_Q;
+
+    num_votes_zkp.c_i = c_i;
+    num_votes_zkp.r_i = r_i + ((c_i * r) % DL_Q) % DL_Q;
   }
-
-  CryptoPP::Integer c = hash_count_zkp(pk, c1, c2, a_vec, b_vec);
-  CryptoPP::Integer c_i = (c - c_sum) % DL_Q;
-
-  num_votes_zkp.c_i = c_i;
-  num_votes_zkp.r_i = r_i + ((c_i * r) % DL_Q) % DL_Q;
 
   Count_ZKPs_Struct count_zkps_struct;
   count_zkps_struct.count_zkps = count_zkps;
@@ -425,6 +426,7 @@ Votes_Struct ElectionClient::CombineVotes(std::vector<VoteRow> all_votes, int nu
 
     Vote_Struct total_vote;
     total_vote.a = c1;
+
     total_vote.b = c2;
 
     vote_structs.push_back(total_vote);
@@ -464,7 +466,6 @@ std::vector<CryptoPP::Integer> ElectionClient::CombineResults(
       if (g_votes == result_exp) {
         break;
       }
-
       votes += CryptoPP::Integer::One();
     }
 

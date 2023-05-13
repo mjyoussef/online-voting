@@ -133,6 +133,7 @@ void ArbiterClient::HandleAdjudicate(std::string _) {
   std::pair<PartialDecryptions_Struct, DecryptionZKPs_Struct> p = 
     ElectionClient::PartialDecryptions(combined_votes, this->EG_arbiter_public_key_i, this->EG_arbiter_secret_key);
   partial_dec_row.decs = p.first;
+
   partial_dec_row.zkps = p.second;
 
   this->db_driver->insert_partial_decryption(partial_dec_row);

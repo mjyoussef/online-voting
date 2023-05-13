@@ -234,14 +234,14 @@ void VoterClient::HandleVote(std::string input) {
   // votes + zkps for each vote
   std::tuple<Votes_Struct, VoteZKPs_Struct, CryptoPP::Integer> votes =
     ElectionClient::GenerateVotes(vote_nums, this->EG_arbiter_public_key);
-
+  
   // vote count zkps
   Votes_Struct votes_struct = std::get<0>(votes);
   VoteZKPs_Struct zkps_struct = std::get<1>(votes);
   CryptoPP::Integer r = std::get<2>(votes);
 
   std::pair<Vote_Struct, Count_ZKPs_Struct> count_zkps =
-    ElectionClient::GenerateCountZKPs(votes_struct.votes, num_votes, r, this->EG_arbiter_public_key);
+    ElectionClient::GenerateCountZKPs(votes_struct.votes, num_votes, this->k, r, this->EG_arbiter_public_key);
   
   VoterToTallyer_Vote_Message voter_to_tallyer_msg;
   voter_to_tallyer_msg.cert = this->certificate;
@@ -253,6 +253,7 @@ void VoterClient::HandleVote(std::string input) {
 
   std::vector<unsigned char> vote_info_str = 
     concat_votes_and_zkps(votes_struct, zkps_struct, count_zkps.first, count_zkps.second); 
+
   voter_to_tallyer_msg.voter_signature = 
     this->crypto_driver->DSA_sign(this->DSA_voter_signing_key, vote_info_str);
 

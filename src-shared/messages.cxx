@@ -540,6 +540,10 @@ int VoterToTallyer_Vote_Message::deserialize(std::vector<unsigned char> &data) {
   // Get fields.
   int n = 1;
 
+  std::vector<unsigned char> cert_data =
+    std::vector<unsigned char>(data.begin() + n, data.end());
+  n += this->cert.deserialize(cert_data);
+
   std::vector<unsigned char> votes_data = 
     std::vector<unsigned char>(data.begin() + n, data.end());
   n += this->votes.deserialize(votes_data);

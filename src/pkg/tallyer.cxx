@@ -196,6 +196,7 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
   std::vector<unsigned char> vote_info_str = 
     concat_votes_and_zkps(voter_to_tallyer_msg.votes, voter_to_tallyer_msg.zkps, 
                           voter_to_tallyer_msg.vote_count, voter_to_tallyer_msg.count_zkps);
+
   if (!(crypto_driver->DSA_verify(voter_to_tallyer_msg.cert.verification_key, vote_info_str, voter_to_tallyer_msg.voter_signature))) {
     throw std::runtime_error("Invalid voter signature provided in voter to tallyer message");
     network_driver->disconnect();
@@ -209,6 +210,11 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
     throw std::runtime_error("Invalid zkp provided by voter");
     network_driver->disconnect();
     return;
+  }
+
+  for (auto &vote_struct : voter_to_tallyer_msg.votes.votes) {
+    std::cout << "Sample a: " << std::endl;
+    std::cout << vote_struct.a << std::endl;
   }
 
   // check zkps for vote count

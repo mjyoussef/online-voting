@@ -335,7 +335,7 @@ VoteRow DBDriver::insert_vote(VoteRow vote) {
   std::unique_lock<std::mutex> lck(this->mtx);
   
   std::string insert_query =
-      "INSERT INTO vote(vote, zkp, signature) VALUES(?, ?, ?);";
+      "INSERT INTO vote(votes, zkps, vote_count, count_zkps, signature) VALUES(?, ?, ?, ?, ?);";
 
   // Serialize vote fields.
   std::vector<unsigned char> votes_data;
@@ -362,8 +362,9 @@ VoteRow DBDriver::insert_vote(VoteRow vote) {
                      &stmt, nullptr);
   sqlite3_bind_blob(stmt, 1, votes_str.c_str(), votes_str.length(), SQLITE_STATIC);
   sqlite3_bind_blob(stmt, 2, zkps_str.c_str(), zkps_str.length(), SQLITE_STATIC);
-  sqlite3_bind_blob(stmt, 3, count_zkps_str.c_str(), count_zkps_str.length(), SQLITE_STATIC);
-  sqlite3_bind_blob(stmt, 4, sign_str.c_str(), sign_str.length(), SQLITE_STATIC);
+  sqlite3_bind_blob(stmt, 3, vote_count_str.c_str(), vote_count_str.length(), SQLITE_STATIC);
+  sqlite3_bind_blob(stmt, 4, count_zkps_str.c_str(), count_zkps_str.length(), SQLITE_STATIC);
+  sqlite3_bind_blob(stmt, 5, sign_str.c_str(), sign_str.length(), SQLITE_STATIC);
 
   // Run and return.
   sqlite3_step(stmt);
