@@ -168,7 +168,7 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
     crypto_driver->decrypt_and_verify(keys.first, keys.second, raw_voter_to_tallyer);
 
   if (!(voter_to_tallyer_cipher.second)) {
-    throw std::runtime_error("Unverified voter to tallyer message sent");
+    this->cli_driver->print_warning("Unverified voter to tallyer message sent");
     network_driver->disconnect();
     return;
   }
@@ -178,7 +178,7 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
 
   // check that the user has not voted
   if (this->db_driver->voter_voted(voter_to_tallyer_msg.cert.id)) {
-    throw std::runtime_error("Voter has previously voted");
+    this->cli_driver->print_warning("Voter has previously voted");
     network_driver->disconnect();
     return;
   }
@@ -187,7 +187,7 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
   std::vector<unsigned char> id_plus_vk = 
     concat_string_and_dsakey(voter_to_tallyer_msg.cert.id, voter_to_tallyer_msg.cert.verification_key);
   if (!(crypto_driver->DSA_verify(this->DSA_registrar_verification_key, id_plus_vk, voter_to_tallyer_msg.cert.registrar_signature))) {
-    throw std::runtime_error("Invalid registrar certificate provided by voter");
+    this->cli_driver->print_warning("Invalid registrar certificate provided by voter");
     network_driver->disconnect();
     return;
   }
@@ -198,7 +198,7 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
                           voter_to_tallyer_msg.vote_count, voter_to_tallyer_msg.count_zkps);
 
   if (!(crypto_driver->DSA_verify(voter_to_tallyer_msg.cert.verification_key, vote_info_str, voter_to_tallyer_msg.voter_signature))) {
-    throw std::runtime_error("Invalid voter signature provided in voter to tallyer message");
+    this->cli_driver->print_warning("Invalid voter signature provided in voter to tallyer message");
     network_driver->disconnect();
     return;
   }
@@ -207,21 +207,16 @@ void TallyerClient::HandleTally(std::shared_ptr<NetworkDriver> network_driver,
   std::pair<Votes_Struct, VoteZKPs_Struct> votes = 
     std::make_pair(voter_to_tallyer_msg.votes, voter_to_tallyer_msg.zkps);
   if (!(ElectionClient::VerifyVoteZKPs(votes, this->EG_arbiter_public_key))) {
-    throw std::runtime_error("Invalid zkp provided by voter");
+    this->cli_driver->print_warning("Invalid zkp provided by voter");
     network_driver->disconnect();
     return;
-  }
-
-  for (auto &vote_struct : voter_to_tallyer_msg.votes.votes) {
-    std::cout << "Sample a: " << std::endl;
-    std::cout << vote_struct.a << std::endl;
   }
 
   // check zkps for vote count
   std::pair<Vote_Struct, Count_ZKPs_Struct> vote_count = 
     std::make_pair(voter_to_tallyer_msg.vote_count, voter_to_tallyer_msg.count_zkps);
   if (!(ElectionClient::VerifyCountZKPs(vote_count, this->EG_arbiter_public_key))) {
-    throw std::runtime_error("Invalid count zkp provided by voter");
+    this->cli_driver->print_warning("Invalid count zkp provided by voter");
     network_driver->disconnect();
     return;
   }
